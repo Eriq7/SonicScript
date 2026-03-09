@@ -1,0 +1,52 @@
+appId: com.sonicscript.app
+productName: SonicScript
+copyright: Copyright © 2024 SonicScript
+
+directories:
+  buildResources: resources
+  output: dist
+
+files:
+  - out/**/*
+  - node_modules/**/*
+  - '!node_modules/.cache'
+
+extraResources:
+  - from: resources/
+    to: resources/
+    filter:
+      - '**/*'
+
+mac:
+  category: public.app-category.productivity
+  icon: resources/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+  hardenedRuntime: true
+
+dmg:
+  title: SonicScript ${version}
+  sign: false
+
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  category: Utility
+  target:
+    - AppImage
+
+afterSign: scripts/notarize.js

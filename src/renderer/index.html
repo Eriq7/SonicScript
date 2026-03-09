@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SonicScript</title>
+    <style>
+      /* Applied immediately by browser before any JS — prevents white flash */
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; }
+      body { background: #0f0f1a; color: white; font-family: system-ui, sans-serif; }
+      body.floating { background: transparent !important; }
+      #root { min-height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
