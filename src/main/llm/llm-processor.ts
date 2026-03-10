@@ -16,12 +16,12 @@ export async function processWithLLM(
 
   const client = new OpenAI({
     apiKey: settings.apiKey,
-    baseURL: settings.baseURL || 'https://api.openai.com/v1',
+    baseURL: 'https://api.openai.com/v1',
   });
 
   try {
     const response = await client.chat.completions.create({
-      model: settings.model || 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 1000,
       temperature: 0.1,

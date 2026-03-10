@@ -24,7 +24,7 @@ export function LLMSettings(): React.ReactElement {
     enabled: false,
     apiKey: '',
     baseURL: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
+    model: 'gpt-4.1-mini',
     mode: 'smart-edit',
   });
   const [showKey, setShowKey] = useState(false);
@@ -64,9 +64,14 @@ export function LLMSettings(): React.ReactElement {
         />
       </div>
 
+      {/* Description */}
+      <p className="text-xs text-hw-muted leading-relaxed px-1">
+        Smart Edit uses GPT-4.1 Mini to automatically clean up grammar, remove filler words, and adjust tone based on the app you're typing in.
+      </p>
+
       {config.enabled && (
         <div
-          className="p-4 space-y-5"
+          className="p-4 space-y-4"
           style={{
             background: '#2A3F3E',
             border: '1px solid #344A49',
@@ -113,46 +118,14 @@ export function LLMSettings(): React.ReactElement {
             </div>
           </div>
 
-          {/* Base URL */}
-          <div>
-            <SectionLabel>
-              Base URL <span className="normal-case tracking-normal text-hw-dim ml-1">(OpenAI-compatible)</span>
-            </SectionLabel>
-            <input
-              type="text"
-              value={config.baseURL}
-              onChange={e => setConfig(c => ({ ...c, baseURL: e.target.value }))}
-              placeholder="https://api.openai.com/v1"
-              className={insetInputClass}
-              onFocus={e => {
-                (e.currentTarget as HTMLInputElement).style.borderColor = '#7ECEB3';
-                (e.currentTarget as HTMLInputElement).style.boxShadow = '0 0 0 2px rgba(126,206,179,0.15)';
-              }}
-              onBlur={e => {
-                (e.currentTarget as HTMLInputElement).style.borderColor = '#344A49';
-                (e.currentTarget as HTMLInputElement).style.boxShadow = 'none';
-              }}
-            />
-          </div>
-
-          {/* Model */}
-          <div>
-            <SectionLabel>Model</SectionLabel>
-            <input
-              type="text"
-              value={config.model}
-              onChange={e => setConfig(c => ({ ...c, model: e.target.value }))}
-              placeholder="gpt-4o-mini"
-              className={insetInputClass}
-              onFocus={e => {
-                (e.currentTarget as HTMLInputElement).style.borderColor = '#7ECEB3';
-                (e.currentTarget as HTMLInputElement).style.boxShadow = '0 0 0 2px rgba(126,206,179,0.15)';
-              }}
-              onBlur={e => {
-                (e.currentTarget as HTMLInputElement).style.borderColor = '#344A49';
-                (e.currentTarget as HTMLInputElement).style.boxShadow = 'none';
-              }}
-            />
+          {/* Privacy notice */}
+          <div className="flex items-start gap-2 pt-1">
+            <svg className="h-3.5 w-3.5 mt-0.5 shrink-0 text-hw-muted" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+            </svg>
+            <p className="text-[11px] text-hw-dim leading-relaxed">
+              Your API key is stored locally on your device only. SonicScript has no servers, no database, and no way to access your key.
+            </p>
           </div>
         </div>
       )}

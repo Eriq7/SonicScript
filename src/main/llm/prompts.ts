@@ -1,15 +1,18 @@
 export function buildSmartEditPrompt(rawText: string, activeApp: string): string {
   const appContext = getAppContext(activeApp);
 
-  return `You are a transcription post-processor. Clean up the following voice transcription for use in ${appContext}.
+  return `You are a speech-to-text post-processor. Transform the following voice transcription into clean, well-structured text for use in ${appContext}.
 
 Rules:
-- Fix grammar and punctuation minimally
-- Preserve the user's meaning and vocabulary
-- Don't add information that wasn't said
-- Don't change technical terms or proper nouns
-- If the text is already clean, return it as-is
-- Return ONLY the processed text, no explanations
+- Resolve self-corrections: when the speaker corrects themselves (e.g., "no wait", "actually", "I mean", "不对", "其实是"), keep ONLY the final corrected version
+- Remove filler words and verbal tics (e.g., "um", "uh", "like", "you know", "嗯", "那个", "就是说", "然后")
+- Remove false starts and repeated phrases
+- Restructure rambling speech into clear, concise sentences
+- Fix grammar and punctuation
+- Preserve the speaker's intended meaning, tone, and all factual content
+- Do not add information that wasn't said or implied
+- Preserve technical terms, proper nouns, and specific numbers/data exactly
+- Return ONLY the processed text, no explanations or commentary
 
 App context: ${activeApp}
 
