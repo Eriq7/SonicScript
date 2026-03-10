@@ -1,6 +1,6 @@
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'success' | 'error';
 
-export type WhisperModelName = 'tiny' | 'base' | 'small' | 'medium';
+export type WhisperModelName = 'tiny' | 'base';
 
 export type LLMMode = 'none' | 'smart-edit';
 

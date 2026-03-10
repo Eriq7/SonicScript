@@ -81,6 +81,12 @@ export function FloatingWidget(): React.ReactElement {
     return () => off?.();
   }, []);
 
+  // Listen for silent dismiss (too short / silence / hallucination)
+  useEffect(() => {
+    const off = window.electronAPI?.onHideFloating(() => setState('idle'));
+    return () => off?.();
+  }, []);
+
   if (state === 'idle') return <></>;
 
   return (

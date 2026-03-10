@@ -78,6 +78,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.SHOW_SETTINGS, () => cb());
     return () => ipcRenderer.removeAllListeners(IPC.SHOW_SETTINGS);
   },
+  onHideFloating: (cb: () => void) => {
+    ipcRenderer.on(IPC.HIDE_FLOATING, () => cb());
+    return () => ipcRenderer.removeAllListeners(IPC.HIDE_FLOATING);
+  },
 });
 
 // Type declaration for renderer
@@ -104,6 +108,7 @@ declare global {
       onModelReady: (cb: (model: WhisperModelName) => void) => () => void;
       onModelError: (cb: (model: WhisperModelName, error: string) => void) => () => void;
       onShowSettings: (cb: () => void) => () => void;
+      onHideFloating: (cb: () => void) => () => void;
     };
   }
 }

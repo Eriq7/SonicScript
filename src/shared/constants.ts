@@ -15,20 +15,6 @@ export const WHISPER_MODELS: Record<WhisperModelName, WhisperModelInfo> = {
     isDownloaded: false,
     hfModelId: 'Xenova/whisper-base',
   },
-  small: {
-    name: 'small',
-    displayName: 'Small',
-    sizeLabel: '~244 MB',
-    isDownloaded: false,
-    hfModelId: 'Xenova/whisper-small',
-  },
-  medium: {
-    name: 'medium',
-    displayName: 'Medium',
-    sizeLabel: '~1.5 GB',
-    isDownloaded: false,
-    hfModelId: 'Xenova/whisper-medium',
-  },
 };
 
 export const DEFAULT_HOTKEY = 'RIGHT ALT';

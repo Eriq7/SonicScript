@@ -62,15 +62,32 @@ export class WhisperEngine extends EventEmitter {
     }
 
     const id = Date.now().toString();
-    const req: TranscribeRequest = { id, pcmBuffer: pcmData, language, model };
+    const startMs = Date.now();
+    // Copy buffer BEFORE transfer so we can safely reference it
+    const bufferCopy = pcmData.buffer.slice(0);
 
     return new Promise((resolve, reject) => {
-      this.pendingResolvers.set(id, {
-        resolve: (text: string) => resolve({ text, durationMs: 0 }),
-        reject,
-      });
+      // 90-second timeout — prevents forever-hang if worker crashes silently
+      const timer = setTimeout(() => {
+        this.pendingResolvers.delete(id);
+        reject(new Error('Transcription timed out after 90s'));
+      }, 90_000);
 
-      this.worker!.postMessage({ type: 'transcribe', ...req }, [pcmData.buffer]);
+      const wrappedResolve = (text: string) => {
+        clearTimeout(timer);
+        resolve({ text, durationMs: Date.now() - startMs });
+      };
+      const wrappedReject = (err: Error) => {
+        clearTimeout(timer);
+        reject(err);
+      };
+
+      this.pendingResolvers.set(id, { resolve: wrappedResolve, reject: wrappedReject });
+
+      this.worker!.postMessage(
+        { type: 'transcribe', id, pcmBuffer: bufferCopy, language, model },
+        [bufferCopy],
+      );
     });
   }
 
@@ -137,11 +154,21 @@ export class WhisperEngine extends EventEmitter {
 
       this.worker.on('message', onMessage);
       this.worker.on('error', (err) => {
+        console.error('[WhisperEngine] Worker error:', err);
         this.workerReady = false;
+        // Reject any in-flight transcriptions
+        this.pendingResolvers.forEach(r => r.reject(err));
+        this.pendingResolvers.clear();
         reject(err);
       });
-      this.worker.on('exit', () => {
+      this.worker.on('exit', (code) => {
+        console.warn('[WhisperEngine] Worker exited with code', code);
         this.workerReady = false;
+        if (code !== 0 && this.pendingResolvers.size > 0) {
+          const err = new Error(`Whisper worker exited unexpectedly (code ${code})`);
+          this.pendingResolvers.forEach(r => r.reject(err));
+          this.pendingResolvers.clear();
+        }
       });
     });
   }

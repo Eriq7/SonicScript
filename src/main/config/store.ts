@@ -8,12 +8,20 @@ const store = new Store<AppSettings>({
 });
 
 export function getSettings(): AppSettings {
-  return {
+  const settings = {
     hotkey: store.get('hotkey', DEFAULT_SETTINGS.hotkey),
     whisper: store.get('whisper', DEFAULT_SETTINGS.whisper),
     llm: store.get('llm', DEFAULT_SETTINGS.llm),
     general: store.get('general', DEFAULT_SETTINGS.general),
   };
+
+  // Migrate removed models (small/medium) to 'base'
+  if (settings.whisper.model !== 'tiny' && settings.whisper.model !== 'base') {
+    settings.whisper.model = 'base';
+    store.set('whisper', settings.whisper);
+  }
+
+  return settings;
 }
 
 export function setSettings(partial: Partial<AppSettings>): void {

@@ -38,11 +38,13 @@ export function registerIpcHandlers(): void {
     const silentDismiss = () => floatingWin?.webContents.send(IPC.HIDE_FLOATING);
 
     try {
+      console.log(`[IPC] AUDIO_DATA received, bytes=${arrayBuffer.byteLength}`);
       const pcm = processPCMBuffer(arrayBuffer);
+      console.log(`[IPC] Duration=${pcm.durationMs}ms, samples=${pcm.samples.length}`);
 
       // Guard 1: minimum duration < 0.8s → skip (prevents hallucinations on taps)
       if (pcm.durationMs < 800) {
-        console.log(`[IPC] Too short (${pcm.durationMs}ms), skipping`);
+        console.log(`[IPC] SKIP: too short (${pcm.durationMs}ms)`);
         silentDismiss();
         return;
       }
@@ -51,29 +53,33 @@ export function registerIpcHandlers(): void {
       const rms = Math.sqrt(
         pcm.samples.reduce((sum, s) => sum + s * s, 0) / pcm.samples.length,
       );
-      if (rms < 0.01) {
-        console.log(`[IPC] Too quiet (RMS=${rms.toFixed(4)}), skipping`);
+      console.log(`[IPC] RMS=${rms.toFixed(5)}`);
+      if (rms < 0.005) {
+        console.log(`[IPC] SKIP: too quiet (RMS=${rms.toFixed(5)})`);
         silentDismiss();
         return;
       }
 
       const settings = getSettings();
       const engine = WhisperEngine.getInstance();
+      console.log(`[IPC] Sending to Whisper model=${settings.whisper.model}, lang=${settings.whisper.language}`);
 
       const { text, durationMs } = await engine.transcribe(
         pcm.samples,
         settings.whisper.model,
         settings.whisper.language,
       );
+      console.log(`[IPC] Whisper result: "${text}" (took ${durationMs}ms)`);
 
       // Guard 3: hallucination filter
       if (isHallucination(text)) {
-        console.log(`[IPC] Hallucination filtered: "${text}"`);
+        console.log(`[IPC] SKIP: hallucination filtered: "${text}"`);
         silentDismiss();
         return;
       }
 
       const finalText = await processWithLLM(text, settings.llm);
+      console.log(`[IPC] Injecting text: "${finalText}"`);
 
       await injectText(finalText);
 

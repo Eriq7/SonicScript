@@ -14,8 +14,6 @@ export function ModelManager(): React.ReactElement {
   const [models, setModels] = useState<Record<WhisperModelName, ModelStatus>>({
     tiny: { name: 'tiny', isDownloaded: false, isDownloading: false, progress: 0, status: '' },
     base: { name: 'base', isDownloaded: false, isDownloading: false, progress: 0, status: '' },
-    small: { name: 'small', isDownloaded: false, isDownloading: false, progress: 0, status: '' },
-    medium: { name: 'medium', isDownloaded: false, isDownloading: false, progress: 0, status: '' },
   });
   const [activeModel, setActiveModel] = useState<WhisperModelName>('base');
 
@@ -92,8 +90,8 @@ export function ModelManager(): React.ReactElement {
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-400 mb-4">
-        Larger models are more accurate but slower and require more disk space.
-        The <strong className="text-white">Base</strong> model is recommended for most users.
+        The <strong className="text-white">Base</strong> model is recommended for best accuracy.
+        The <strong className="text-white">Tiny</strong> model is faster but less accurate.
       </p>
       {(Object.keys(WHISPER_MODELS) as WhisperModelName[]).map((name) => {
         const info = WHISPER_MODELS[name];

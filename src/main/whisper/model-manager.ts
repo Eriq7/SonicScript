@@ -27,8 +27,6 @@ export function getDownloadedModels(): Record<WhisperModelName, boolean> {
   return {
     tiny: isModelDownloaded('tiny'),
     base: isModelDownloaded('base'),
-    small: isModelDownloaded('small'),
-    medium: isModelDownloaded('medium'),
   };
 }
 

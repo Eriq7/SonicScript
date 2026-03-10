@@ -51,12 +51,19 @@ parentPort!.on('message', async (msg: { type: string; id?: string; pcmBuffer?: A
     return;
   }
 
-  if (msg.type === 'transcribe' && transcriber) {
+  if (msg.type === 'transcribe') {
+    if (!transcriber) {
+      console.error('[Worker] transcriber not initialized!');
+      parentPort!.postMessage({ type: 'error', id: msg.id, error: 'Transcriber not initialized' });
+      return;
+    }
     cancelFlag = false;
     const { id, pcmBuffer, language } = msg;
 
     try {
+      console.log(`[Worker] Received transcribe request id=${id}, bufferBytes=${pcmBuffer?.byteLength ?? 'null'}, lang=${language}`);
       const floatArray = new Float32Array(pcmBuffer!);
+      console.log(`[Worker] Float32Array samples=${floatArray.length}, starting inference...`);
       const start = Date.now();
 
       const output = await transcriber(floatArray, {
@@ -67,16 +74,20 @@ parentPort!.on('message', async (msg: { type: string; id?: string; pcmBuffer?: A
         return_timestamps: false,
       });
 
+      const elapsed = Date.now() - start;
+      console.log(`[Worker] Inference done in ${elapsed}ms`);
+
       if (cancelFlag) {
         parentPort!.postMessage({ type: 'cancelled' });
         return;
       }
 
       const text = (output?.text ?? '').trim();
-      const durationMs = Date.now() - start;
+      console.log(`[Worker] Result: "${text}"`);
 
-      parentPort!.postMessage({ type: 'result', id, text, durationMs });
+      parentPort!.postMessage({ type: 'result', id, text, durationMs: elapsed });
     } catch (err: any) {
+      console.error('[Worker] Transcription error:', err);
       parentPort!.postMessage({ type: 'error', id, error: err.message });
     }
   }
