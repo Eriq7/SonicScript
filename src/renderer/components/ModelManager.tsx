@@ -1,6 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { WHISPER_MODEL_DISPLAY_NAME, WHISPER_MODEL_SIZE_LABEL } from '../../shared/constants';
 
+const VU_SEGMENTS = 20;
+
+function VUMeter({ progress }: { progress: number }) {
+  const filled = Math.round((progress / 100) * VU_SEGMENTS);
+  return (
+    <div className="flex items-center gap-[2px]" style={{ height: '12px' }}>
+      {Array.from({ length: VU_SEGMENTS }).map((_, i) => {
+        const isFilled = i < filled;
+        return (
+          <div
+            key={i}
+            style={{
+              width: '6px',
+              height: '100%',
+              borderRadius: '1px',
+              background: isFilled ? '#7ECEB3' : '#344A49',
+              boxShadow: isFilled ? '0 0 4px rgba(126,206,179,0.4)' : 'none',
+              transition: 'background 0.1s ease, box-shadow 0.1s ease',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function ModelManager(): React.ReactElement {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -58,45 +84,80 @@ export function ModelManager(): React.ReactElement {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-400">
-        SonicScript uses <strong className="text-white">{WHISPER_MODEL_DISPLAY_NAME}</strong> — a
-        high-accuracy model with fast inference via Metal GPU on Apple Silicon.
+      <p className="text-xs font-mono text-hw-muted leading-relaxed">
+        SonicScript uses{' '}
+        <span className="text-hw-text">{WHISPER_MODEL_DISPLAY_NAME}</span> — high-accuracy
+        inference with Metal GPU on Apple Silicon.
       </p>
 
-      <div className="rounded-xl p-4 border border-violet-500 bg-violet-900/20">
+      {/* Model card */}
+      <div
+        className="p-4"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
         <div className="flex items-center justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-white">{WHISPER_MODEL_DISPLAY_NAME}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2.5 mb-1">
+              <span className="font-mono text-sm text-hw-text">{WHISPER_MODEL_DISPLAY_NAME}</span>
+              {/* LED status badge */}
               {isDownloaded && (
-                <span className="text-xs bg-violet-600 text-white px-2 py-0.5 rounded-full">Ready</span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: '#5CB893',
+                      boxShadow: '0 0 6px rgba(92,184,147,0.5), 0 0 2px rgba(92,184,147,0.8)',
+                    }}
+                  />
+                  <span className="text-[10px] font-mono text-hw-muted uppercase tracking-wider">Ready</span>
+                </div>
               )}
             </div>
-            <span className="text-sm text-slate-400">{WHISPER_MODEL_SIZE_LABEL}</span>
+            <span className="text-[10px] text-hw-dim font-mono uppercase tracking-wider">{WHISPER_MODEL_SIZE_LABEL}</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {isDownloading ? (
-              <div className="flex flex-col items-end gap-1 min-w-[140px]">
-                <div className="w-full bg-white/10 rounded-full h-1.5">
-                  <div
-                    className="bg-violet-500 h-1.5 rounded-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <span className="text-xs text-slate-400">{status}</span>
-              </div>
-            ) : isDownloaded ? (
+          <div className="flex items-center gap-2 shrink-0">
+            {isDownloading ? null : isDownloaded ? (
               <button
                 onClick={handleDelete}
-                className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-red-900/40 text-slate-300 hover:text-red-300 transition-colors"
+                className="text-[11px] font-mono px-3 py-1.5 text-hw-muted transition-all duration-200 uppercase tracking-wider"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #344A49',
+                  borderRadius: '4px',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#E06C6C';
+                  (e.currentTarget as HTMLButtonElement).style.color = '#E06C6C';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#344A49';
+                  (e.currentTarget as HTMLButtonElement).style.color = '#8A9E97';
+                }}
               >
                 Delete
               </button>
             ) : (
               <button
                 onClick={handleDownload}
-                className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-colors"
+                className="text-[11px] font-mono px-3 py-1.5 font-medium transition-all duration-200 uppercase tracking-wider"
+                style={{
+                  background: '#7ECEB3',
+                  color: '#1C2B2A',
+                  borderRadius: '4px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = '#6BBD9F';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = '#7ECEB3';
+                }}
               >
                 Download
               </button>
@@ -104,15 +165,36 @@ export function ModelManager(): React.ReactElement {
           </div>
         </div>
 
+        {/* VU meter progress */}
+        {isDownloading && (
+          <div className="mt-4 space-y-2">
+            <VUMeter progress={progress} />
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-hw-dim">{status}</span>
+              <span className="text-[10px] font-mono text-accent">{progress}%</span>
+            </div>
+          </div>
+        )}
+
         {error && (
-          <p className="mt-2 text-xs text-red-400">Error: {error}</p>
+          <p className="mt-3 text-[11px] font-mono text-danger">ERR: {error}</p>
         )}
       </div>
 
       {!isDownloaded && !isDownloading && (
-        <div className="p-3 rounded-lg bg-amber-900/20 border border-amber-500/30">
-          <p className="text-xs text-amber-300">
-            Model not downloaded. Recording will not work until you download it.
+        <div
+          className="p-3"
+          style={{
+            background: 'rgba(126,206,179,0.06)',
+            borderLeft: '2px solid rgba(126,206,179,0.5)',
+            borderTop: '1px solid rgba(126,206,179,0.15)',
+            borderRight: '1px solid rgba(126,206,179,0.15)',
+            borderBottom: '1px solid rgba(126,206,179,0.15)',
+            borderRadius: '4px',
+          }}
+        >
+          <p className="text-[11px] font-mono text-accent uppercase tracking-wider">
+            Model not downloaded — recording disabled
           </p>
         </div>
       )}

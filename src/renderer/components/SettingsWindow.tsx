@@ -6,53 +6,75 @@ import { SUPPORTED_LANGUAGES } from '../../shared/constants';
 
 type Tab = 'general' | 'hotkey' | 'model' | 'llm' | 'about';
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'general', label: 'General', icon: '⚙️' },
-  { id: 'hotkey', label: 'Hotkey', icon: '⌨️' },
-  { id: 'model', label: 'Model', icon: '🧠' },
-  { id: 'llm', label: 'Smart Edit', icon: '✨' },
-  { id: 'about', label: 'About', icon: 'ℹ️' },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'general', label: 'General' },
+  { id: 'hotkey', label: 'Hotkey' },
+  { id: 'model', label: 'Model' },
+  { id: 'llm', label: 'Smart Edit' },
+  { id: 'about', label: 'About' },
 ];
 
 export function SettingsWindow(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<Tab>('hotkey');
 
   return (
-    <div className="flex h-screen bg-[#0f0f1a] text-white">
+    <div className="flex h-screen bg-chassis text-hw-text">
       {/* Sidebar */}
-      <aside className="w-48 bg-[#13131f] border-r border-white/5 flex flex-col py-4 shrink-0">
-        <div className="px-4 mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🎙️</span>
-            <span className="font-semibold text-white">SonicScript</span>
+      <aside
+        className="w-44 bg-panel flex flex-col py-5 shrink-0"
+        style={{ borderRight: '1px solid #344A49' }}
+      >
+        {/* Logo */}
+        <div className="px-5 mb-7">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="w-2 h-2 rounded-full bg-accent shrink-0 animate-pulse"
+              style={{ boxShadow: '0 0 6px rgba(126,206,179,0.5), 0 0 2px rgba(126,206,179,0.8)' }}
+            />
+            <span
+              className="font-bold text-hw-text tracking-tight text-sm"
+              style={{ fontFamily: 'Syne, system-ui, sans-serif' }}
+            >
+              SonicScript
+            </span>
           </div>
         </div>
-        <nav className="flex-1 px-2 space-y-1">
+
+        {/* Nav */}
+        <nav className="flex-1 px-0">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+              className={`w-full flex items-center px-5 py-2.5 text-xs transition-all duration-200 text-left border-b border-groove ${
                 activeTab === tab.id
-                  ? 'bg-violet-600/20 text-violet-300'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'text-accent border-l-2 border-l-accent pl-[18px]'
+                  : 'text-hw-muted hover:text-hw-text'
               }`}
+              style={{ fontFamily: 'Syne, system-ui, sans-serif', fontWeight: activeTab === tab.id ? 600 : 400 }}
             >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
+              {tab.label}
             </button>
           ))}
         </nav>
-        <div className="px-4 pt-4 border-t border-white/5">
-          <p className="text-xs text-slate-500">v1.0.0</p>
+
+        {/* Version */}
+        <div className="px-5 pt-4 border-t border-groove">
+          <p className="text-[10px] font-mono tracking-widest text-hw-dim uppercase">v1.0.0</p>
         </div>
       </aside>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        <h2 className="text-lg font-semibold text-white mb-5">
-          {TABS.find(t => t.id === activeTab)?.label}
-        </h2>
+      <main className="flex-1 overflow-y-auto p-8 transition-opacity duration-150">
+        {/* Section label with ruled line */}
+        <div className="flex items-center gap-3 mb-6">
+          <span
+            className="text-[10px] font-mono uppercase tracking-[0.2em] text-hw-muted whitespace-nowrap"
+          >
+            {TABS.find(t => t.id === activeTab)?.label}
+          </span>
+          <div className="flex-1 h-px bg-groove" />
+        </div>
 
         {activeTab === 'general' && <GeneralSettings />}
         {activeTab === 'hotkey' && <HotkeyConfig />}
@@ -60,6 +82,49 @@ export function SettingsWindow(): React.ReactElement {
         {activeTab === 'llm' && <LLMSettings />}
         {activeTab === 'about' && <AboutTab />}
       </main>
+    </div>
+  );
+}
+
+export function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={onChange}
+      className="relative inline-flex items-center transition-all duration-200 shrink-0"
+      style={{
+        height: '22px',
+        width: '40px',
+        borderRadius: '4px',
+        background: checked ? '#7ECEB3' : '#2A3F3E',
+        border: '1px solid',
+        borderColor: checked ? '#6BBD9F' : '#344A49',
+        boxShadow: checked
+          ? '0 0 4px rgba(126,206,179,0.3)'
+          : 'inset 0 2px 4px rgba(0,0,0,0.3)',
+      }}
+    >
+      <span
+        className="absolute transition-transform duration-150"
+        style={{
+          height: '16px',
+          width: '16px',
+          borderRadius: '3px',
+          background: '#E8E4D9',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+          transform: checked ? 'translateX(20px)' : 'translateX(2px)',
+        }}
+      />
+    </button>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 mb-3">
+      <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-hw-muted whitespace-nowrap">
+        {children}
+      </span>
+      <div className="flex-1 h-px bg-groove" />
     </div>
   );
 }
@@ -87,49 +152,68 @@ function GeneralSettings(): React.ReactElement {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+    <div className="space-y-5">
+      {/* Launch at startup */}
+      <div
+        className="flex items-center justify-between p-4"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
         <div>
-          <p className="font-medium text-white">Launch at Startup</p>
-          <p className="text-sm text-slate-400 mt-0.5">Start SonicScript automatically on login</p>
+          <p className="font-mono text-sm text-hw-text">Launch at Startup</p>
+          <p className="text-xs text-hw-muted mt-0.5">Start automatically on login</p>
         </div>
-        <button
-          onClick={toggleStartup}
-          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-            launchAtStartup ? 'bg-violet-600' : 'bg-white/20'
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              launchAtStartup ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
-        </button>
+        <Toggle checked={launchAtStartup} onChange={toggleStartup} />
       </div>
 
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
-        <p className="text-sm text-slate-300 font-medium">Transcription Language</p>
-        <div className="space-y-2">
+      {/* Language */}
+      <div
+        className="p-4"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
+        <SectionLabel>Transcription Language</SectionLabel>
+        <div className="space-y-1">
           {SUPPORTED_LANGUAGES.map(lang => (
             <label
               key={lang.code}
-              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                language === lang.code
-                  ? 'border-violet-500 bg-violet-900/20'
-                  : 'border-white/10 bg-white/5 hover:bg-white/10'
-              }`}
+              className="flex items-center gap-3 p-3 cursor-pointer transition-all duration-200"
+              style={{ borderRadius: '4px' }}
             >
+              {/* LED indicator */}
+              <div
+                className="w-3 h-3 rounded-full border shrink-0 flex items-center justify-center transition-all duration-200"
+                style={{
+                  borderColor: language === lang.code ? '#7ECEB3' : '#3F5857',
+                  boxShadow: language === lang.code ? '0 0 6px rgba(126,206,179,0.5), 0 0 2px rgba(126,206,179,0.8)' : 'none',
+                }}
+              >
+                {language === lang.code && (
+                  <div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: '#7ECEB3' }}
+                  />
+                )}
+              </div>
               <input
                 type="radio"
                 name="language"
                 value={lang.code}
                 checked={language === lang.code}
                 onChange={() => handleLanguageChange(lang.code)}
-                className="mt-0.5 accent-violet-500"
+                className="sr-only"
               />
               <div>
-                <p className="text-sm font-medium text-white">{lang.label}</p>
-                <p className="text-xs text-slate-400">{lang.hint}</p>
+                <p className="text-sm font-mono text-hw-text">{lang.label}</p>
+                <p className="text-xs text-hw-muted">{lang.hint}</p>
               </div>
             </label>
           ))}
@@ -141,27 +225,97 @@ function GeneralSettings(): React.ReactElement {
 
 function AboutTab(): React.ReactElement {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4 p-6 rounded-xl bg-white/5 border border-white/10">
-        <span className="text-5xl">🎙️</span>
+    <div className="space-y-5">
+      {/* App identity */}
+      <div
+        className="flex items-center gap-4 p-5"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
+        {/* Accent dot in recessed square */}
+        <div
+          className="w-10 h-10 flex items-center justify-center shrink-0"
+          style={{
+            background: '#233635',
+            border: '1px solid #344A49',
+            borderRadius: '4px',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+          }}
+        >
+          <span
+            className="w-3.5 h-3.5 rounded-full block"
+            style={{
+              background: '#7ECEB3',
+              boxShadow: '0 0 8px rgba(126,206,179,0.5), 0 0 3px rgba(126,206,179,0.8)',
+            }}
+          />
+        </div>
         <div>
-          <h3 className="text-xl font-bold text-white">SonicScript</h3>
-          <p className="text-slate-400 mt-1">Free, local, privacy-first speech-to-text</p>
-          <p className="text-slate-500 text-sm mt-1">Version 1.0.0</p>
+          <h3
+            className="text-base font-bold text-hw-text tracking-tight"
+            style={{ fontFamily: 'Syne, system-ui, sans-serif' }}
+          >
+            SonicScript
+          </h3>
+          <p className="text-hw-muted text-xs mt-0.5">Free, local, privacy-first speech-to-text</p>
+          <p className="text-hw-dim text-[10px] font-mono mt-1 tracking-widest uppercase">SN: 1.0.0</p>
         </div>
       </div>
 
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-sm text-slate-400 space-y-2">
-        <p>🔒 <strong className="text-white">100% local</strong> — no data leaves your device</p>
-        <p>🚫 <strong className="text-white">No account</strong> — no sign-up required</p>
-        <p>⚡ <strong className="text-white">Powered by Whisper</strong> — OpenAI's open-source ASR model</p>
-        <p>🆓 <strong className="text-white">Free forever</strong> — open source</p>
+      {/* Features */}
+      <div
+        className="p-4"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
+        <SectionLabel>Features</SectionLabel>
+        <div className="space-y-3">
+          {[
+            { label: '100% local', detail: 'No data leaves your device' },
+            { label: 'No account', detail: 'No sign-up required' },
+            { label: 'Powered by Whisper', detail: "OpenAI's open-source ASR model" },
+            { label: 'Free forever', detail: 'Open source' },
+          ].map(item => (
+            <div key={item.label} className="flex items-start gap-3">
+              <span
+                className="mt-1.5 w-2 h-2 rounded-full shrink-0"
+                style={{
+                  background: '#5CB893',
+                  boxShadow: '0 0 6px rgba(92,184,147,0.5), 0 0 2px rgba(92,184,147,0.8)',
+                }}
+              />
+              <p className="text-xs font-mono text-hw-muted">
+                <span className="text-hw-text">{item.label}</span>
+                {' — '}{item.detail}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-        <p className="text-sm text-slate-400">
-          <strong className="text-white">Usage:</strong> Hold Right Alt (Windows) or Right Option (macOS) while speaking.
-          Release the key to transcribe. The text will be automatically pasted at your cursor position.
+      {/* Usage */}
+      <div
+        className="p-4"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
+        <SectionLabel>Usage</SectionLabel>
+        <p className="text-xs font-mono text-hw-muted leading-relaxed">
+          Hold <span className="text-hw-text">Right Alt</span> (Windows) or{' '}
+          <span className="text-hw-text">Right Option</span> (macOS) while speaking.
+          Release to transcribe. Text will be pasted at your cursor.
         </p>
       </div>
     </div>

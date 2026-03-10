@@ -3,7 +3,7 @@
  * Wispr-Flow-style floating indicator:
  *   recording  → animated waveform pill
  *   processing → spinner + "Transcribing…"
- *   success    → text preview card that stays for 1.5s
+ *   success    → LED dot + text preview (1s)
  *   error      → brief error message
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -65,7 +65,6 @@ export function FloatingWidget(): React.ReactElement {
     const off = window.electronAPI?.onTranscriptionResult((text) => {
       setResultText(text);
       setState('success');
-      // Stay visible for 1.5 seconds after showing result
       hideTimerRef.current = setTimeout(() => setState('idle'), 1000);
     });
     return () => off?.();
@@ -81,7 +80,7 @@ export function FloatingWidget(): React.ReactElement {
     return () => off?.();
   }, []);
 
-  // Listen for silent dismiss (too short / silence / hallucination)
+  // Listen for silent dismiss
   useEffect(() => {
     const off = window.electronAPI?.onHideFloating(() => setState('idle'));
     return () => off?.();
@@ -92,34 +91,35 @@ export function FloatingWidget(): React.ReactElement {
   return (
     <div className="flex items-end justify-center w-full h-full pb-2">
       <div
-        className={`
-          relative max-w-[280px] w-full rounded-2xl shadow-2xl
-          border border-white/10 backdrop-blur-xl
-          transition-all duration-300
-          ${state === 'recording' ? 'bg-black/85' : ''}
-          ${state === 'processing' ? 'bg-black/85' : ''}
-          ${state === 'success' ? 'bg-[#1a1a2e]/95' : ''}
-          ${state === 'error' ? 'bg-red-950/90' : ''}
-        `}
+        className="relative max-w-[280px] w-full shadow-lg backdrop-blur-xl transition-all duration-300"
+        style={{
+          background: state === 'error' ? 'rgba(40,20,20,0.96)' : 'rgba(28,43,42,0.94)',
+          border: `1px solid ${state === 'error' ? '#5A2222' : '#344A49'}`,
+          borderRadius: '6px',
+        }}
       >
         {/* ── Recording state ── */}
         {state === 'recording' && (
           <div className="flex items-center gap-3 px-4 py-3">
-            {/* Animated bars */}
             <div className="flex items-center gap-[3px] h-5">
               {[0, 1, 2, 3, 4].map(i => (
                 <div
                   key={i}
-                  className="w-[3px] bg-red-400 rounded-full"
                   style={{
+                    width: '3px',
+                    background: '#7ECEB3',
+                    borderRadius: '2px',
                     height: `${[60, 90, 75, 100, 65][i]}%`,
                     animation: `barBounce 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
                   }}
                 />
               ))}
             </div>
-            <span className="text-white text-sm font-medium">Recording</span>
-            <span className="text-white/40 text-xs ml-auto tabular-nums">
+            <span className="text-hw-text text-sm font-mono">Recording</span>
+            <span
+              className="text-xs ml-auto font-mono tabular-nums"
+              style={{ color: '#5A6E67' }}
+            >
               {Math.floor(recordingSecs / 60).toString().padStart(2, '0')}:
               {(recordingSecs % 60).toString().padStart(2, '0')}
             </span>
@@ -129,31 +129,45 @@ export function FloatingWidget(): React.ReactElement {
         {/* ── Processing state ── */}
         {state === 'processing' && (
           <div className="flex items-center gap-3 px-4 py-3">
-            <svg className="animate-spin h-4 w-4 text-violet-400 shrink-0" viewBox="0 0 24 24" fill="none">
+            <svg
+              className="animate-spin h-4 w-4 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ color: '#7ECEB3' }}
+            >
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <span className="text-white/80 text-sm">Transcribing…</span>
+            <span className="text-hw-muted text-sm font-mono">Transcribing…</span>
           </div>
         )}
 
         {/* ── Success state ── */}
         {state === 'success' && (
-          <div className="flex items-center gap-2 px-4 py-3">
-            <svg className="h-3.5 w-3.5 text-green-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            <span className="text-green-400 text-sm font-medium">Transcription inserted</span>
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            {/* Green LED dot */}
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{
+                background: '#5CB893',
+                boxShadow: '0 0 6px rgba(92,184,147,0.5), 0 0 2px rgba(92,184,147,0.8)',
+              }}
+            />
+            <span className="text-hw-text text-sm font-mono">Inserted</span>
           </div>
         )}
 
         {/* ── Error state ── */}
         {state === 'error' && (
           <div className="flex items-center gap-3 px-4 py-3">
-            <svg className="h-4 w-4 text-red-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            <span className="text-red-300 text-sm">{resultText || 'Error — try again'}</span>
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{
+                background: '#E06C6C',
+                boxShadow: '0 0 6px rgba(224,108,108,0.5), 0 0 2px rgba(224,108,108,0.8)',
+              }}
+            />
+            <span className="text-danger text-sm font-mono">{resultText || 'Error — try again'}</span>
           </div>
         )}
       </div>
