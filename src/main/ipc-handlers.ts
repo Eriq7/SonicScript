@@ -1,11 +1,11 @@
 import { ipcMain, systemPreferences } from 'electron';
 import { IPC } from '../shared/types';
-import type { AppSettings, WhisperModelName } from '../shared/types';
+import type { AppSettings } from '../shared/types';
 import { getSettings, setSettings } from './config/store';
 import { processPCMBuffer } from './audio/audio-recorder';
 import { WhisperEngine } from './whisper/whisper-engine';
 import { downloadModel } from './whisper/model-downloader';
-import { getDownloadedModels, deleteModel } from './whisper/model-manager';
+import { isModelDownloaded, deleteModel } from './whisper/model-manager';
 import { injectText } from './output/text-output';
 import { processWithLLM } from './llm/llm-processor';
 import { getFloatingWindow, getSettingsWindow } from './windows';
@@ -62,11 +62,10 @@ export function registerIpcHandlers(): void {
 
       const settings = getSettings();
       const engine = WhisperEngine.getInstance();
-      console.log(`[IPC] Sending to Whisper model=${settings.whisper.model}, lang=${settings.whisper.language}`);
+      console.log(`[IPC] Sending to Whisper lang=${settings.whisper.language}`);
 
       const { text, durationMs } = await engine.transcribe(
         pcm.samples,
-        settings.whisper.model,
         settings.whisper.language,
       );
       console.log(`[IPC] Whisper result: "${text}" (took ${durationMs}ms)`);
@@ -98,15 +97,15 @@ export function registerIpcHandlers(): void {
   });
 
   // ─── Model management ─────────────────────────────────────────────────────
-  ipcMain.handle(IPC.GET_MODEL_STATUS, () => getDownloadedModels());
+  ipcMain.handle(IPC.GET_MODEL_STATUS, () => isModelDownloaded());
 
-  ipcMain.handle(IPC.DOWNLOAD_MODEL, async (_e, model: WhisperModelName) => {
+  ipcMain.handle(IPC.DOWNLOAD_MODEL, async () => {
     const win = getSettingsWindow() ?? getFloatingWindow();
-    await downloadModel(model, win);
+    await downloadModel(win);
   });
 
-  ipcMain.handle(IPC.DELETE_MODEL, (_e, model: WhisperModelName) => {
-    deleteModel(model);
+  ipcMain.handle(IPC.DELETE_MODEL, () => {
+    deleteModel();
   });
 
   // ─── Permissions ──────────────────────────────────────────────────────────

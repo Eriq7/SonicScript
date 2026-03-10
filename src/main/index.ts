@@ -50,15 +50,12 @@ async function bootstrap(): Promise<void> {
     },
   );
 
-  // Preload Whisper model in background
+  // Preload Whisper model in background (no-op if model not yet downloaded)
   const whisperEngine = WhisperEngine.getInstance();
-  const whisperSettings = settings.whisper;
-
-  console.log(`[Main] Preloading Whisper model: ${whisperSettings.model}`);
   whisperEngine
-    .preload(whisperSettings.model)
+    .preload()
     .then(() => console.log('[Main] Whisper model ready'))
-    .catch(err => console.error('[Main] Whisper preload failed:', err.message));
+    .catch(err => console.warn('[Main] Whisper preload skipped:', err.message));
 
   // Keep app running in background (tray app)
   app.on('before-quit', () => {

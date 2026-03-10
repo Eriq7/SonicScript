@@ -1,37 +1,17 @@
 /**
- * WhisperEngine: Singleton that manages a worker thread running @xenova/transformers.
- * The model is preloaded at startup to eliminate cold-start delay on first recording.
+ * WhisperEngine: Singleton wrapping @fugood/whisper.node (whisper.cpp native binding).
+ * Uses Metal GPU on macOS Apple Silicon, CPU on others.
+ * Model is preloaded at startup to eliminate cold-start delay.
  */
-import { Worker } from 'worker_threads';
-import * as path from 'path';
 import { EventEmitter } from 'events';
-import { getModelCacheDir, getModelHFId } from './model-manager';
-import type { WhisperModelName } from '../../shared/types';
-
-interface TranscribeRequest {
-  id: string;
-  pcmBuffer: Float32Array;
-  language: string;
-  model: WhisperModelName;
-}
-
-interface WorkerMessage {
-  type: 'ready' | 'result' | 'error' | 'progress' | 'cancelled';
-  id?: string;
-  text?: string;
-  durationMs?: number;
-  error?: string;
-  progress?: number;
-  status?: string;
-  model?: WhisperModelName;
-}
+import type { WhisperContext } from '@fugood/whisper.node';
+import { getModelPath, isModelDownloaded } from './model-manager';
+import { CHINESE_INITIAL_PROMPT } from '../../shared/constants';
 
 export class WhisperEngine extends EventEmitter {
   private static instance: WhisperEngine;
-  private worker: Worker | null = null;
-  private currentModel: WhisperModelName | null = null;
-  private pendingResolvers = new Map<string, { resolve: (text: string) => void; reject: (e: Error) => void }>();
-  private workerReady = false;
+  private context: WhisperContext | null = null;
+  private stopFn: (() => Promise<void>) | null = null;
 
   private constructor() {
     super();
@@ -44,137 +24,70 @@ export class WhisperEngine extends EventEmitter {
     return WhisperEngine.instance;
   }
 
-  /** Preload model at startup. Should be called once from main process init. */
-  async preload(model: WhisperModelName): Promise<void> {
-    if (this.currentModel === model && this.workerReady) return;
+  /** Preload model at startup. Safe to call multiple times. */
+  async preload(): Promise<void> {
+    if (this.context) return;
+    if (!isModelDownloaded()) {
+      throw new Error('Whisper model not downloaded. Please download it from Settings → Model.');
+    }
 
-    await this.spawnWorker(model);
+    const { initWhisper } = await import('@fugood/whisper.node');
+    this.context = await initWhisper({ filePath: getModelPath(), useGpu: true });
+    console.log('[WhisperEngine] Model loaded, GPU enabled if available');
   }
 
   /** Transcribe raw 16kHz mono Float32Array PCM data. */
   async transcribe(
-    pcmData: Float32Array,
-    model: WhisperModelName,
+    pcmFloat32: Float32Array,
     language: string,
   ): Promise<{ text: string; durationMs: number }> {
-    if (!this.workerReady || this.currentModel !== model) {
-      await this.spawnWorker(model);
+    if (!this.context) {
+      await this.preload();
     }
 
-    const id = Date.now().toString();
+    // Convert Float32 [-1,1] → Int16 (what whisper.cpp expects)
+    const int16 = float32ToInt16(pcmFloat32);
     const startMs = Date.now();
-    // Copy buffer BEFORE transfer so we can safely reference it
-    const bufferCopy = pcmData.buffer.slice(0);
 
-    return new Promise((resolve, reject) => {
-      // 90-second timeout — prevents forever-hang if worker crashes silently
-      const timer = setTimeout(() => {
-        this.pendingResolvers.delete(id);
-        reject(new Error('Transcription timed out after 90s'));
-      }, 90_000);
+    const prompt = language === 'zh' ? CHINESE_INITIAL_PROMPT : undefined;
 
-      const wrappedResolve = (text: string) => {
-        clearTimeout(timer);
-        resolve({ text, durationMs: Date.now() - startMs });
-      };
-      const wrappedReject = (err: Error) => {
-        clearTimeout(timer);
-        reject(err);
-      };
-
-      this.pendingResolvers.set(id, { resolve: wrappedResolve, reject: wrappedReject });
-
-      this.worker!.postMessage(
-        { type: 'transcribe', id, pcmBuffer: bufferCopy, language, model },
-        [bufferCopy],
-      );
+    const { stop, promise } = this.context!.transcribeData(int16.buffer, {
+      language,
+      prompt,
+      temperature: 0.0,
     });
+    this.stopFn = stop;
+
+    try {
+      const result = await promise;
+      return { text: result.result.trim(), durationMs: Date.now() - startMs };
+    } finally {
+      this.stopFn = null;
+    }
   }
 
-  cancel(): void {
-    this.worker?.postMessage({ type: 'cancel' });
+  async cancel(): Promise<void> {
+    if (this.stopFn) {
+      await this.stopFn();
+      this.stopFn = null;
+    }
   }
 
-  private spawnWorker(model: WhisperModelName): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // Clean up existing worker
-      if (this.worker) {
-        this.worker.terminate();
-        this.worker = null;
-        this.workerReady = false;
-        this.currentModel = null;
-      }
-
-      const workerPath = path.join(__dirname, 'whisper', 'whisper-worker.js');
-      const cacheDir = getModelCacheDir(model);
-      const hfModelId = getModelHFId(model);
-
-      this.worker = new Worker(workerPath, {
-        workerData: { model, cacheDir, hfModelId },
-      });
-
-      const onMessage = (msg: WorkerMessage) => {
-        switch (msg.type) {
-          case 'ready':
-            this.workerReady = true;
-            this.currentModel = model;
-            resolve();
-            break;
-
-          case 'result': {
-            const resolver = this.pendingResolvers.get(msg.id!);
-            if (resolver) {
-              this.pendingResolvers.delete(msg.id!);
-              resolver.resolve(msg.text ?? '');
-            }
-            break;
-          }
-
-          case 'error': {
-            const resolver = this.pendingResolvers.get(msg.id!);
-            if (resolver) {
-              this.pendingResolvers.delete(msg.id!);
-              resolver.reject(new Error(msg.error));
-            } else {
-              reject(new Error(msg.error));
-            }
-            break;
-          }
-
-          case 'progress':
-            this.emit('model-progress', msg.model, msg.progress, msg.status);
-            break;
-
-          case 'cancelled':
-            this.pendingResolvers.forEach(r => r.reject(new Error('Cancelled')));
-            this.pendingResolvers.clear();
-            break;
-        }
-      };
-
-      this.worker.on('message', onMessage);
-      this.worker.on('error', (err) => {
-        console.error('[WhisperEngine] Worker error:', err);
-        this.workerReady = false;
-        // Reject any in-flight transcriptions
-        this.pendingResolvers.forEach(r => r.reject(err));
-        this.pendingResolvers.clear();
-        reject(err);
-      });
-      this.worker.on('exit', (code) => {
-        console.warn('[WhisperEngine] Worker exited with code', code);
-        this.workerReady = false;
-        if (code !== 0 && this.pendingResolvers.size > 0) {
-          const err = new Error(`Whisper worker exited unexpectedly (code ${code})`);
-          this.pendingResolvers.forEach(r => r.reject(err));
-          this.pendingResolvers.clear();
-        }
-      });
-    });
+  /** Release the model context (called on app quit). */
+  async release(): Promise<void> {
+    if (this.context) {
+      await this.context.release();
+      this.context = null;
+    }
   }
+}
 
-  async switchModel(model: WhisperModelName): Promise<void> {
-    if (this.currentModel === model && this.workerReady) return;
-    await this.spawnWorker(model);
+/** Convert Float32 PCM [-1, 1] to Int16 PCM for whisper.cpp */
+function float32ToInt16(float32: Float32Array): Int16Array {
+  const int16 = new Int16Array(float32.length);
+  for (let i = 0; i < float32.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32[i]));
+    int16[i] = Math.round(s * 32767);
   }
+  return int16;
 }

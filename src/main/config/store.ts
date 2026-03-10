@@ -15,9 +15,9 @@ export function getSettings(): AppSettings {
     general: store.get('general', DEFAULT_SETTINGS.general),
   };
 
-  // Migrate removed models (small/medium) to 'base'
-  if (settings.whisper.model !== 'tiny' && settings.whisper.model !== 'base') {
-    settings.whisper.model = 'base';
+  // Migrate: ensure language is 'zh' or 'en' (remove legacy 'auto')
+  if (settings.whisper.language !== 'zh' && settings.whisper.language !== 'en') {
+    settings.whisper.language = 'zh';
     store.set('whisper', settings.whisper);
   }
 

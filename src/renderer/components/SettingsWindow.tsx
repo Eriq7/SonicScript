@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ModelManager } from './ModelManager';
 import { HotkeyConfig } from './HotkeyConfig';
 import { LLMSettings } from './LLMSettings';
+import { SUPPORTED_LANGUAGES } from '../../shared/constants';
 
 type Tab = 'general' | 'hotkey' | 'model' | 'llm' | 'about';
 
@@ -65,15 +66,24 @@ export function SettingsWindow(): React.ReactElement {
 
 function GeneralSettings(): React.ReactElement {
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
+  const [language, setLanguage] = useState('zh');
 
   React.useEffect(() => {
-    window.electronAPI?.getSettings().then(s => setLaunchAtStartup(s.general.launchAtStartup));
+    window.electronAPI?.getSettings().then(s => {
+      setLaunchAtStartup(s.general.launchAtStartup);
+      setLanguage(s.whisper.language);
+    });
   }, []);
 
-  const toggle = async () => {
+  const toggleStartup = async () => {
     const next = !launchAtStartup;
     setLaunchAtStartup(next);
     await window.electronAPI?.setSettings({ general: { launchAtStartup: next, showNotifications: true } });
+  };
+
+  const handleLanguageChange = async (code: string) => {
+    setLanguage(code);
+    await window.electronAPI?.setSettings({ whisper: { language: code } });
   };
 
   return (
@@ -84,7 +94,7 @@ function GeneralSettings(): React.ReactElement {
           <p className="text-sm text-slate-400 mt-0.5">Start SonicScript automatically on login</p>
         </div>
         <button
-          onClick={toggle}
+          onClick={toggleStartup}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
             launchAtStartup ? 'bg-violet-600' : 'bg-white/20'
           }`}
@@ -97,12 +107,33 @@ function GeneralSettings(): React.ReactElement {
         </button>
       </div>
 
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-        <p className="text-sm text-slate-300 font-medium mb-1">Transcription Language</p>
-        <p className="text-sm text-slate-500">
-          Auto-detect is recommended. The model detects language automatically.
-        </p>
-        <p className="text-xs text-violet-400 mt-2">Language: Auto-detect</p>
+      <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+        <p className="text-sm text-slate-300 font-medium">Transcription Language</p>
+        <div className="space-y-2">
+          {SUPPORTED_LANGUAGES.map(lang => (
+            <label
+              key={lang.code}
+              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                language === lang.code
+                  ? 'border-violet-500 bg-violet-900/20'
+                  : 'border-white/10 bg-white/5 hover:bg-white/10'
+              }`}
+            >
+              <input
+                type="radio"
+                name="language"
+                value={lang.code}
+                checked={language === lang.code}
+                onChange={() => handleLanguageChange(lang.code)}
+                className="mt-0.5 accent-violet-500"
+              />
+              <div>
+                <p className="text-sm font-medium text-white">{lang.label}</p>
+                <p className="text-xs text-slate-400">{lang.hint}</p>
+              </div>
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );

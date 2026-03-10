@@ -1,7 +1,5 @@
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'success' | 'error';
 
-export type WhisperModelName = 'tiny' | 'base';
-
 export type LLMMode = 'none' | 'smart-edit';
 
 export interface AppSettings {
@@ -16,8 +14,7 @@ export interface HotkeySettings {
 }
 
 export interface WhisperSettings {
-  model: WhisperModelName;
-  language: string; // 'auto' or ISO code e.g. 'zh', 'en'
+  language: string; // ISO code e.g. 'zh', 'en'
 }
 
 export interface LLMSettings {
@@ -40,18 +37,15 @@ export interface TranscriptionResult {
 }
 
 export interface ModelDownloadProgress {
-  model: WhisperModelName;
   status: 'downloading' | 'ready' | 'error';
   progress: number; // 0-100
   error?: string;
 }
 
 export interface WhisperModelInfo {
-  name: WhisperModelName;
   displayName: string;
   sizeLabel: string;
   isDownloaded: boolean;
-  hfModelId: string;
 }
 
 // IPC channel names (centralized to avoid typos)

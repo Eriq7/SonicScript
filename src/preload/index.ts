@@ -1,16 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/types';
-import type { AppSettings, WhisperModelName } from '../shared/types';
-
-// Detect window type from URL hash (set by main process when creating windows)
-const getWindowType = (): 'floating' | 'settings' => {
-  // Will be determined at runtime from the URL
-  return 'settings'; // default
-};
+import type { AppSettings } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
-  windowType: getWindowType(),
 
   // ─── Hotkey events (main → renderer, listen) ───
   onHotkeyPressed: (cb: () => void) => {
@@ -53,23 +46,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestAccessibility: (): Promise<void> =>
     ipcRenderer.invoke(IPC.REQUEST_ACCESSIBILITY),
 
-  // ─── Model management ───
-  getModelStatus: (): Promise<Record<WhisperModelName, boolean>> =>
+  // ─── Model management (single model, no model parameter) ───
+  getModelStatus: (): Promise<boolean> =>
     ipcRenderer.invoke(IPC.GET_MODEL_STATUS),
-  downloadModel: (model: WhisperModelName): Promise<void> =>
-    ipcRenderer.invoke(IPC.DOWNLOAD_MODEL, model),
-  deleteModel: (model: WhisperModelName): Promise<void> =>
-    ipcRenderer.invoke(IPC.DELETE_MODEL, model),
-  onModelProgress: (cb: (model: WhisperModelName, progress: number, status: string) => void) => {
-    ipcRenderer.on(IPC.MODEL_PROGRESS, (_e, model, progress, status) => cb(model, progress, status));
+  downloadModel: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.DOWNLOAD_MODEL),
+  deleteModel: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.DELETE_MODEL),
+  onModelProgress: (cb: (progress: number, status: string) => void) => {
+    ipcRenderer.on(IPC.MODEL_PROGRESS, (_e, progress, status) => cb(progress, status));
     return () => ipcRenderer.removeAllListeners(IPC.MODEL_PROGRESS);
   },
-  onModelReady: (cb: (model: WhisperModelName) => void) => {
-    ipcRenderer.on(IPC.MODEL_READY, (_e, model) => cb(model));
+  onModelReady: (cb: () => void) => {
+    ipcRenderer.on(IPC.MODEL_READY, () => cb());
     return () => ipcRenderer.removeAllListeners(IPC.MODEL_READY);
   },
-  onModelError: (cb: (model: WhisperModelName, error: string) => void) => {
-    ipcRenderer.on(IPC.MODEL_ERROR, (_e, model, error) => cb(model, error));
+  onModelError: (cb: (error: string) => void) => {
+    ipcRenderer.on(IPC.MODEL_ERROR, (_e, error) => cb(error));
     return () => ipcRenderer.removeAllListeners(IPC.MODEL_ERROR);
   },
 
@@ -89,7 +82,6 @@ declare global {
   interface Window {
     electronAPI: {
       platform: NodeJS.Platform;
-      windowType: 'floating' | 'settings';
       onHotkeyPressed: (cb: () => void) => () => void;
       onHotkeyReleased: (cb: () => void) => () => void;
       sendAudioData: (pcmBuffer: ArrayBuffer) => Promise<void>;
@@ -101,12 +93,12 @@ declare global {
       updateHotkey: (key: string) => Promise<void>;
       checkAccessibility: () => Promise<boolean>;
       requestAccessibility: () => Promise<void>;
-      getModelStatus: () => Promise<Record<WhisperModelName, boolean>>;
-      downloadModel: (model: WhisperModelName) => Promise<void>;
-      deleteModel: (model: WhisperModelName) => Promise<void>;
-      onModelProgress: (cb: (model: WhisperModelName, progress: number, status: string) => void) => () => void;
-      onModelReady: (cb: (model: WhisperModelName) => void) => () => void;
-      onModelError: (cb: (model: WhisperModelName, error: string) => void) => () => void;
+      getModelStatus: () => Promise<boolean>;
+      downloadModel: () => Promise<void>;
+      deleteModel: () => Promise<void>;
+      onModelProgress: (cb: (progress: number, status: string) => void) => () => void;
+      onModelReady: (cb: () => void) => () => void;
+      onModelError: (cb: (error: string) => void) => () => void;
       onShowSettings: (cb: () => void) => () => void;
       onHideFloating: (cb: () => void) => () => void;
     };
