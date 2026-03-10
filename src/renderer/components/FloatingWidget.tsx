@@ -3,7 +3,7 @@
  * Wispr-Flow-style floating indicator:
  *   recording  → animated waveform pill
  *   processing → spinner + "Transcribing…"
- *   success    → text preview card that stays for 4s
+ *   success    → text preview card that stays for 1.5s
  *   error      → brief error message
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -65,8 +65,8 @@ export function FloatingWidget(): React.ReactElement {
     const off = window.electronAPI?.onTranscriptionResult((text) => {
       setResultText(text);
       setState('success');
-      // Stay visible for 4 seconds after showing result
-      hideTimerRef.current = setTimeout(() => setState('idle'), 4000);
+      // Stay visible for 1.5 seconds after showing result
+      hideTimerRef.current = setTimeout(() => setState('idle'), 1000);
     });
     return () => off?.();
   }, []);
@@ -137,18 +137,13 @@ export function FloatingWidget(): React.ReactElement {
           </div>
         )}
 
-        {/* ── Success state — full text preview ── */}
+        {/* ── Success state ── */}
         {state === 'success' && (
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="h-3.5 w-3.5 text-green-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              <span className="text-green-400 text-xs font-medium uppercase tracking-wide">Inserted</span>
-            </div>
-            <p className="text-white/90 text-sm leading-relaxed line-clamp-4">
-              {resultText}
-            </p>
+          <div className="flex items-center gap-2 px-4 py-3">
+            <svg className="h-3.5 w-3.5 text-green-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            <span className="text-green-400 text-sm font-medium">Transcription inserted</span>
           </div>
         )}
 

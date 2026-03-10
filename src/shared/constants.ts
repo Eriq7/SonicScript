@@ -11,8 +11,8 @@ export const WHISPER_MODEL_SIZE_LABEL = '~574 MB';
 export const CHINESE_INITIAL_PROMPT = '以下是普通话的句子。';
 
 export const SUPPORTED_LANGUAGES = [
-  { code: 'zh', label: '中文', hint: '中文为主，可夹杂英文单词' },
-  { code: 'en', label: 'English', hint: '英文为主，偶尔说中文词' },
+  { code: 'zh', label: '中文', hint: 'Primarily Chinese, can mix in English words' },
+  { code: 'en', label: 'English', hint: 'Primarily English, occasional Chinese words OK' },
 ] as const;
 
 export const DEFAULT_HOTKEY = 'RIGHT ALT';
