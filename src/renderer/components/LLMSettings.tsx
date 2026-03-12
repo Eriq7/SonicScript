@@ -66,7 +66,7 @@ export function LLMSettings(): React.ReactElement {
 
       {/* Description */}
       <p className="text-xs text-hw-muted leading-relaxed px-1">
-        Smart Edit uses GPT-4.1 Nano to automatically clean up grammar, remove filler words, and adjust tone based on the app you're typing in.
+        Smart Edit uses GPT-4.1 Nano to automatically clean up grammar, remove filler words, and adjust tone based on the app you're typing in. If you speak 60 minutes a day, it costs about $0.01/day.
       </p>
 
       {config.enabled && (

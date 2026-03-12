@@ -36,19 +36,11 @@ async function bootstrap(): Promise<void> {
   hotkeyManager = new HotkeyManager(settings.hotkey.key);
   setHotkeyManagerRef(hotkeyManager);
 
-  hotkeyManager.start(
-    // onPressed: key held down → tell renderer to start recording
-    () => {
-      const win = getFloatingWindow();
-      win?.showInactive();
-      win?.webContents.send(IPC.HOTKEY_PRESSED);
-    },
-    // onReleased: key released → tell renderer to stop recording
-    () => {
-      const win = getFloatingWindow();
-      win?.webContents.send(IPC.HOTKEY_RELEASED);
-    },
-  );
+  hotkeyManager.start(() => {
+    const win = getFloatingWindow();
+    win?.showInactive();
+    win?.webContents.send(IPC.HOTKEY_DOUBLE_TAP);
+  });
 
   // Preload Whisper model in background (no-op if model not yet downloaded)
   const whisperEngine = WhisperEngine.getInstance();

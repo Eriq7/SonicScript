@@ -29,36 +29,35 @@ export function FloatingWidget(): React.ReactElement {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [state]);
 
-  const handleHotkeyPressed = useCallback(async () => {
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    setResultText('');
-    setState('recording');
-    try {
-      await startRecording();
-    } catch {
-      setState('error');
-      hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
+  const handleDoubleTap = useCallback(async () => {
+    if (state === 'idle') {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      setResultText('');
+      setState('recording');
+      try {
+        await startRecording();
+      } catch {
+        setState('error');
+        hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
+      }
+    } else if (state === 'recording') {
+      setState('processing');
+      try {
+        const buffer = await stopRecording();
+        await window.electronAPI?.sendAudioData(buffer);
+      } catch {
+        setState('error');
+        hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
+      }
     }
-  }, [startRecording]);
-
-  const handleHotkeyReleased = useCallback(async () => {
-    if (state !== 'recording') return;
-    setState('processing');
-    try {
-      const buffer = await stopRecording();
-      await window.electronAPI?.sendAudioData(buffer);
-    } catch {
-      setState('error');
-      hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
-    }
-  }, [state, stopRecording]);
+    // processing / success / error: ignore double-tap
+  }, [state, startRecording, stopRecording]);
 
   // Listen for hotkey events
   useEffect(() => {
-    const offPressed = window.electronAPI?.onHotkeyPressed(handleHotkeyPressed);
-    const offReleased = window.electronAPI?.onHotkeyReleased(handleHotkeyReleased);
-    return () => { offPressed?.(); offReleased?.(); };
-  }, [handleHotkeyPressed, handleHotkeyReleased]);
+    const off = window.electronAPI?.onHotkeyDoubleTap(handleDoubleTap);
+    return () => off?.();
+  }, [handleDoubleTap]);
 
   // Listen for transcription result
   useEffect(() => {

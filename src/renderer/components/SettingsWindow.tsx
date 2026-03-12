@@ -313,9 +313,9 @@ function AboutTab(): React.ReactElement {
       >
         <SectionLabel>Usage</SectionLabel>
         <p className="text-xs font-mono text-hw-muted leading-relaxed">
-          Hold <span className="text-hw-text">Right Alt</span> (Windows) or{' '}
-          <span className="text-hw-text">Right Option</span> (macOS) while speaking.
-          Release to transcribe. Text will be pasted at your cursor.
+          Double-tap <span className="text-hw-text">Right Alt</span> (Windows) or{' '}
+          <span className="text-hw-text">Right Option</span> (macOS) to start recording.
+          Double-tap again to stop. Text will be pasted at your cursor.
         </p>
       </div>
     </div>

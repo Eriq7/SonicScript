@@ -11,17 +11,16 @@ export class HotkeyManager {
   private listener: GlobalKeyboardListener | null = null;
   private currentKey: string;
   private isHeld = false;
+  private lastKeyUpTime = 0;
 
-  private onPressedCb: HotkeyCallback | null = null;
-  private onReleasedCb: HotkeyCallback | null = null;
+  private onDoubleTapCb: HotkeyCallback | null = null;
 
   constructor(key: string) {
     this.currentKey = key;
   }
 
-  start(onPressed: HotkeyCallback, onReleased: HotkeyCallback): void {
-    this.onPressedCb = onPressed;
-    this.onReleasedCb = onReleased;
+  start(onDoubleTap: HotkeyCallback): void {
+    this.onDoubleTapCb = onDoubleTap;
 
     this.listener = new GlobalKeyboardListener();
 
@@ -32,10 +31,14 @@ export class HotkeyManager {
       if (keyName === targetKey || this.matchesKey(e, targetKey)) {
         if (e.state === 'DOWN' && !this.isHeld) {
           this.isHeld = true;
-          this.onPressedCb?.();
-        } else if (e.state === 'UP' && this.isHeld) {
+          const now = Date.now();
+          if (this.lastKeyUpTime > 0 && now - this.lastKeyUpTime < 350) {
+            this.onDoubleTapCb?.();
+            this.lastKeyUpTime = 0; // prevent triple-tap
+          }
+        } else if (e.state === 'UP') {
           this.isHeld = false;
-          this.onReleasedCb?.();
+          this.lastKeyUpTime = Date.now();
         }
       }
     });
@@ -45,6 +48,7 @@ export class HotkeyManager {
   updateKey(key: string): void {
     this.currentKey = key;
     this.isHeld = false;
+    this.lastKeyUpTime = 0;
   }
 
   stop(): void {

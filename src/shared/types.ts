@@ -51,8 +51,7 @@ export interface WhisperModelInfo {
 // IPC channel names (centralized to avoid typos)
 export const IPC = {
   // Hotkey events (main → renderer)
-  HOTKEY_PRESSED: 'hotkey-pressed',
-  HOTKEY_RELEASED: 'hotkey-released',
+  HOTKEY_DOUBLE_TAP: 'hotkey-double-tap',
 
   // Audio (renderer → main, invoke)
   AUDIO_DATA: 'audio-data',

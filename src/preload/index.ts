@@ -6,13 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
 
   // ─── Hotkey events (main → renderer, listen) ───
-  onHotkeyPressed: (cb: () => void) => {
-    ipcRenderer.on(IPC.HOTKEY_PRESSED, () => cb());
-    return () => ipcRenderer.removeAllListeners(IPC.HOTKEY_PRESSED);
-  },
-  onHotkeyReleased: (cb: () => void) => {
-    ipcRenderer.on(IPC.HOTKEY_RELEASED, () => cb());
-    return () => ipcRenderer.removeAllListeners(IPC.HOTKEY_RELEASED);
+  onHotkeyDoubleTap: (cb: () => void) => {
+    ipcRenderer.on(IPC.HOTKEY_DOUBLE_TAP, () => cb());
+    return () => ipcRenderer.removeAllListeners(IPC.HOTKEY_DOUBLE_TAP);
   },
 
   // ─── Audio (renderer → main) ───
@@ -82,8 +78,7 @@ declare global {
   interface Window {
     electronAPI: {
       platform: NodeJS.Platform;
-      onHotkeyPressed: (cb: () => void) => () => void;
-      onHotkeyReleased: (cb: () => void) => () => void;
+      onHotkeyDoubleTap: (cb: () => void) => () => void;
       sendAudioData: (pcmBuffer: ArrayBuffer) => Promise<void>;
       cancelTranscription: () => Promise<void>;
       onTranscriptionResult: (cb: (text: string, durationMs: number) => void) => () => void;
