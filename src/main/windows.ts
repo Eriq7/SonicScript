@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, app } from 'electron';
+import { BrowserWindow, screen, app, shell } from 'electron';
 import * as path from 'path';
 import { is } from '@electron-toolkit/utils';
 import { FLOATING_WIDGET } from '../shared/constants';
@@ -103,6 +103,12 @@ export function createSettingsWindow(): BrowserWindow {
 
   settingsWindow.on('ready-to-show', () => {
     settingsWindow?.show();
+  });
+
+  // Open external links (e.g. API key page) in the system browser, not inside the app
+  settingsWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   settingsWindow.on('closed', () => {

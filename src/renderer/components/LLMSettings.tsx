@@ -118,6 +118,20 @@ export function LLMSettings(): React.ReactElement {
             </div>
           </div>
 
+          {/* API key purchase hint */}
+          <p className="text-[11px] text-hw-dim leading-relaxed -mt-1">
+            Need an API key?{' '}
+            <a
+              href="https://platform.openai.com/api-keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#7ECEB3', textDecoration: 'underline' }}
+            >
+              Get one from OpenAI
+            </a>
+            {' '}— pay only for what you use.
+          </p>
+
           {/* Privacy notice */}
           <div className="flex items-start gap-2 pt-1">
             <svg className="h-3.5 w-3.5 mt-0.5 shrink-0 text-hw-muted" viewBox="0 0 20 20" fill="currentColor">
