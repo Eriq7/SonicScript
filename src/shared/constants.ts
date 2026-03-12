@@ -28,7 +28,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enabled: false,
     apiKey: '',
     baseURL: 'https://api.openai.com/v1',
-    model: 'gpt-4.1-mini',
+    model: 'gpt-4.1-nano',
     mode: 'smart-edit',
   },
   general: {

@@ -21,6 +21,12 @@ export function getSettings(): AppSettings {
     store.set('whisper', settings.whisper);
   }
 
+  // Migrate: upgrade from gpt-4.1-mini to gpt-4.1-nano
+  if (settings.llm.model === 'gpt-4.1-mini') {
+    settings.llm.model = 'gpt-4.1-nano';
+    store.set('llm', settings.llm);
+  }
+
   return settings;
 }
 

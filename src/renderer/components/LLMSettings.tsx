@@ -24,7 +24,7 @@ export function LLMSettings(): React.ReactElement {
     enabled: false,
     apiKey: '',
     baseURL: 'https://api.openai.com/v1',
-    model: 'gpt-4.1-mini',
+    model: 'gpt-4.1-nano',
     mode: 'smart-edit',
   });
   const [showKey, setShowKey] = useState(false);
@@ -66,7 +66,7 @@ export function LLMSettings(): React.ReactElement {
 
       {/* Description */}
       <p className="text-xs text-hw-muted leading-relaxed px-1">
-        Smart Edit uses GPT-4.1 Mini to automatically clean up grammar, remove filler words, and adjust tone based on the app you're typing in.
+        Smart Edit uses GPT-4.1 Nano to automatically clean up grammar, remove filler words, and adjust tone based on the app you're typing in.
       </p>
 
       {config.enabled && (
