@@ -3,7 +3,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { createFloatingWindow, createSettingsWindow, getFloatingWindow } from './windows';
 import { createTray } from './tray';
 import { HotkeyManager } from './hotkey/hotkey-manager';
-import { WhisperEngine } from './whisper/whisper-engine';
+import { SpeechEngine } from './speech/speech-engine';
+import { initDataStore } from './store/data-store';
 import { registerIpcHandlers, setHotkeyManagerRef } from './ipc-handlers';
 import { getSettings } from './config/store';
 import { IPC } from '../shared/types';
@@ -18,6 +19,9 @@ if (!gotLock) {
 let hotkeyManager: HotkeyManager | null = null;
 
 async function bootstrap(): Promise<void> {
+  // Initialize data store (history + snippets)
+  initDataStore();
+
   // Register all IPC handlers first
   registerIpcHandlers();
 
@@ -42,16 +46,16 @@ async function bootstrap(): Promise<void> {
     win?.webContents.send(IPC.HOTKEY_DOUBLE_TAP);
   });
 
-  // Preload Whisper model in background (no-op if model not yet downloaded)
-  const whisperEngine = WhisperEngine.getInstance();
-  whisperEngine
-    .preload()
-    .then(() => console.log('[Main] Whisper model ready'))
-    .catch(err => console.warn('[Main] Whisper preload skipped:', err.message));
+  // Spawn Swift speech helper in background
+  SpeechEngine.getInstance()
+    .spawn()
+    .then(() => console.log('[Main] Speech engine ready'))
+    .catch(err => console.warn('[Main] Speech engine spawn failed:', err.message));
 
   // Keep app running in background (tray app)
   app.on('before-quit', () => {
     hotkeyManager?.stop();
+    SpeechEngine.getInstance().kill().catch(() => {});
   });
 }
 
@@ -76,11 +80,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  // On macOS, keep running as tray app
-  if (process.platform !== 'darwin') {
-    // On Windows/Linux, also keep running as tray app
-    // app.quit(); ← NOT called intentionally
-  }
+  // Keep running as tray app on all platforms
 });
 
 app.on('second-instance', () => {

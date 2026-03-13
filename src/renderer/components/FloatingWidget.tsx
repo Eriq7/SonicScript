@@ -1,22 +1,21 @@
 /**
  * FloatingWidget.tsx
  * Wispr-Flow-style floating indicator:
- *   recording  → animated waveform pill
+ *   recording  → animated waveform pill + live partial transcript
  *   processing → spinner + "Transcribing…"
  *   success    → LED dot + text preview (1s)
  *   error      → brief error message
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useRecording } from '../hooks/useRecording';
 import type { RecordingState } from '../../shared/types';
 
 export function FloatingWidget(): React.ReactElement {
   const [state, setState] = useState<RecordingState>('idle');
   const [resultText, setResultText] = useState('');
+  const [partialText, setPartialText] = useState('');
   const [recordingSecs, setRecordingSecs] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { startRecording, stopRecording } = useRecording();
 
   // Recording duration counter
   useEffect(() => {
@@ -33,9 +32,10 @@ export function FloatingWidget(): React.ReactElement {
     if (state === 'idle') {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       setResultText('');
+      setPartialText('');
       setState('recording');
       try {
-        await startRecording();
+        await window.electronAPI?.startRecording();
       } catch {
         setState('error');
         hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
@@ -43,15 +43,14 @@ export function FloatingWidget(): React.ReactElement {
     } else if (state === 'recording') {
       setState('processing');
       try {
-        const buffer = await stopRecording();
-        await window.electronAPI?.sendAudioData(buffer);
+        await window.electronAPI?.stopRecording();
       } catch {
         setState('error');
         hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
       }
     }
     // processing / success / error: ignore double-tap
-  }, [state, startRecording, stopRecording]);
+  }, [state]);
 
   // Listen for hotkey events
   useEffect(() => {
@@ -59,10 +58,17 @@ export function FloatingWidget(): React.ReactElement {
     return () => off?.();
   }, [handleDoubleTap]);
 
+  // Live partial transcript during recording
+  useEffect(() => {
+    const off = window.electronAPI?.onPartialTranscript(text => setPartialText(text));
+    return () => off?.();
+  }, []);
+
   // Listen for transcription result
   useEffect(() => {
     const off = window.electronAPI?.onTranscriptionResult((text) => {
       setResultText(text);
+      setPartialText('');
       setState('success');
       hideTimerRef.current = setTimeout(() => setState('idle'), 1000);
     });
@@ -73,6 +79,7 @@ export function FloatingWidget(): React.ReactElement {
   useEffect(() => {
     const off = window.electronAPI?.onTranscriptionError((err) => {
       setResultText(err ?? 'Transcription failed');
+      setPartialText('');
       setState('error');
       hideTimerRef.current = setTimeout(() => setState('idle'), 3000);
     });
@@ -81,7 +88,10 @@ export function FloatingWidget(): React.ReactElement {
 
   // Listen for silent dismiss
   useEffect(() => {
-    const off = window.electronAPI?.onHideFloating(() => setState('idle'));
+    const off = window.electronAPI?.onHideFloating(() => {
+      setPartialText('');
+      setState('idle');
+    });
     return () => off?.();
   }, []);
 
@@ -99,29 +109,44 @@ export function FloatingWidget(): React.ReactElement {
       >
         {/* ── Recording state ── */}
         {state === 'recording' && (
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="flex items-center gap-[3px] h-5">
-              {[0, 1, 2, 3, 4].map(i => (
-                <div
-                  key={i}
-                  style={{
-                    width: '3px',
-                    background: '#7ECEB3',
-                    borderRadius: '2px',
-                    height: `${[60, 90, 75, 100, 65][i]}%`,
-                    animation: `barBounce 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
-                  }}
-                />
-              ))}
+          <div className="px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-[3px] h-5">
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    style={{
+                      width: '3px',
+                      background: '#7ECEB3',
+                      borderRadius: '2px',
+                      height: `${[60, 90, 75, 100, 65][i]}%`,
+                      animation: `barBounce 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-hw-text text-sm font-mono">Recording</span>
+              <span
+                className="text-xs ml-auto font-mono tabular-nums"
+                style={{ color: '#5A6E67' }}
+              >
+                {Math.floor(recordingSecs / 60).toString().padStart(2, '0')}:
+                {(recordingSecs % 60).toString().padStart(2, '0')}
+              </span>
             </div>
-            <span className="text-hw-text text-sm font-mono">Recording</span>
-            <span
-              className="text-xs ml-auto font-mono tabular-nums"
-              style={{ color: '#5A6E67' }}
-            >
-              {Math.floor(recordingSecs / 60).toString().padStart(2, '0')}:
-              {(recordingSecs % 60).toString().padStart(2, '0')}
-            </span>
+            {partialText && (
+              <p
+                className="text-[11px] text-hw-muted font-mono leading-relaxed"
+                style={{
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                } as React.CSSProperties}
+              >
+                {partialText}
+              </p>
+            )}
           </div>
         )}
 

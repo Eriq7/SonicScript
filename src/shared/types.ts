@@ -4,17 +4,13 @@ export type LLMMode = 'none' | 'smart-edit';
 
 export interface AppSettings {
   hotkey: HotkeySettings;
-  whisper: WhisperSettings;
+  speech: { language: string };
   llm: LLMSettings;
   general: GeneralSettings;
 }
 
 export interface HotkeySettings {
   key: string; // e.g. 'RIGHT ALT'
-}
-
-export interface WhisperSettings {
-  language: string; // ISO code e.g. 'zh', 'en'
 }
 
 export interface LLMSettings {
@@ -36,16 +32,18 @@ export interface TranscriptionResult {
   language?: string;
 }
 
-export interface ModelDownloadProgress {
-  status: 'downloading' | 'ready' | 'error';
-  progress: number; // 0-100
-  error?: string;
+export interface HistoryEntry {
+  id: string;
+  text: string;
+  appName: string;
+  createdAt: number;
 }
 
-export interface WhisperModelInfo {
-  displayName: string;
-  sizeLabel: string;
-  isDownloaded: boolean;
+export interface Snippet {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: number;
 }
 
 // IPC channel names (centralized to avoid typos)
@@ -53,21 +51,14 @@ export const IPC = {
   // Hotkey events (main → renderer)
   HOTKEY_DOUBLE_TAP: 'hotkey-double-tap',
 
-  // Audio (renderer → main, invoke)
-  AUDIO_DATA: 'audio-data',
+  // Speech recording (renderer → main, invoke)
+  START_RECORDING: 'start-recording',
+  STOP_RECORDING: 'stop-recording',
 
   // Transcription (main → renderer)
+  PARTIAL_TRANSCRIPT: 'partial-transcript',
   TRANSCRIPTION_RESULT: 'transcription-result',
   TRANSCRIPTION_ERROR: 'transcription-error',
-  CANCEL_TRANSCRIPTION: 'cancel-transcription',
-
-  // Model management (invoke)
-  GET_MODEL_STATUS: 'get-model-status',
-  DOWNLOAD_MODEL: 'download-model',
-  DELETE_MODEL: 'delete-model',
-  MODEL_PROGRESS: 'model-progress',
-  MODEL_READY: 'model-ready',
-  MODEL_ERROR: 'model-error',
 
   // Settings (invoke)
   GET_SETTINGS: 'get-settings',
@@ -83,4 +74,12 @@ export const IPC = {
 
   // Update hotkey config (invoke)
   UPDATE_HOTKEY: 'update-hotkey',
+
+  // History & Snippets (invoke)
+  GET_HISTORY: 'get-history',
+  DELETE_HISTORY_ITEM: 'delete-history-item',
+  GET_SNIPPETS: 'get-snippets',
+  ADD_SNIPPET: 'add-snippet',
+  DELETE_SNIPPET: 'delete-snippet',
+  COPY_SNIPPET: 'copy-snippet',
 } as const;

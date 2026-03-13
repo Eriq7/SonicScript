@@ -10,15 +10,22 @@ const store = new Store<AppSettings>({
 export function getSettings(): AppSettings {
   const settings = {
     hotkey: store.get('hotkey', DEFAULT_SETTINGS.hotkey),
-    whisper: store.get('whisper', DEFAULT_SETTINGS.whisper),
+    speech: store.get('speech', DEFAULT_SETTINGS.speech),
     llm: store.get('llm', DEFAULT_SETTINGS.llm),
     general: store.get('general', DEFAULT_SETTINGS.general),
   };
 
-  // Migrate: ensure language is 'zh' or 'en' (remove legacy 'auto')
-  if (settings.whisper.language !== 'zh' && settings.whisper.language !== 'en') {
-    settings.whisper.language = 'zh';
-    store.set('whisper', settings.whisper);
+  // Migration: read from old 'whisper' key if 'speech' not yet persisted
+  if (!store.has('speech') && store.has('whisper' as keyof AppSettings)) {
+    const oldLang = (store.get('whisper' as keyof AppSettings) as { language?: string })?.language;
+    settings.speech = { language: oldLang ?? 'zh' };
+    store.set('speech', settings.speech);
+  }
+
+  // Validate language
+  if (settings.speech.language !== 'zh' && settings.speech.language !== 'en') {
+    settings.speech.language = 'zh';
+    store.set('speech', settings.speech);
   }
 
   // Migrate: upgrade from gpt-4.1-mini to gpt-4.1-nano
@@ -32,7 +39,7 @@ export function getSettings(): AppSettings {
 
 export function setSettings(partial: Partial<AppSettings>): void {
   if (partial.hotkey) store.set('hotkey', { ...getSettings().hotkey, ...partial.hotkey });
-  if (partial.whisper) store.set('whisper', { ...getSettings().whisper, ...partial.whisper });
+  if (partial.speech) store.set('speech', { ...getSettings().speech, ...partial.speech });
   if (partial.llm) store.set('llm', { ...getSettings().llm, ...partial.llm });
   if (partial.general) store.set('general', { ...getSettings().general, ...partial.general });
 }

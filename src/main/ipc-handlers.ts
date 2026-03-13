@@ -1,15 +1,17 @@
-import { ipcMain, systemPreferences } from 'electron';
+import { ipcMain, systemPreferences, clipboard } from 'electron';
 import { IPC } from '../shared/types';
 import type { AppSettings } from '../shared/types';
 import { getSettings, setSettings } from './config/store';
-import { processPCMBuffer } from './audio/audio-recorder';
-import { WhisperEngine } from './whisper/whisper-engine';
-import { downloadModel } from './whisper/model-downloader';
-import { isModelDownloaded, deleteModel } from './whisper/model-manager';
+import { SpeechEngine } from './speech/speech-engine';
+import { getActiveAppName } from './llm/active-app';
 import { injectText } from './output/text-output';
 import { processWithLLM } from './llm/llm-processor';
 import { getFloatingWindow, getSettingsWindow } from './windows';
 import { HotkeyManager } from './hotkey/hotkey-manager';
+import {
+  saveHistory, getHistory, deleteHistory,
+  getSnippets, addSnippet, deleteSnippet,
+} from './store/data-store';
 
 let hotkeyManagerRef: HotkeyManager | null = null;
 
@@ -30,82 +32,84 @@ export function registerIpcHandlers(): void {
     hotkeyManagerRef?.updateKey(key);
   });
 
-  // ─── Audio transcription ──────────────────────────────────────────────────
-  ipcMain.handle(IPC.AUDIO_DATA, async (_e, arrayBuffer: ArrayBuffer) => {
-    const floatingWin = getFloatingWindow();
-    const settingsWin = getSettingsWindow();
+  // ─── Speech recording ─────────────────────────────────────────────────────
 
-    const silentDismiss = () => floatingWin?.webContents.send(IPC.HIDE_FLOATING);
+  ipcMain.handle(IPC.START_RECORDING, async () => {
+    const settings = getSettings();
+    const engine = SpeechEngine.getInstance();
+    const floatingWin = getFloatingWindow();
+
+    // Capture app name NOW (before recording ends, to avoid focus shift)
+    const appName = await getActiveAppName();
+
+    // Session-scoped event handlers — created fresh, cleaned up on every exit path
+    const cleanup = (): void => {
+      engine.removeListener('partial', onPartial);
+      engine.removeListener('final', onFinal);
+      engine.removeListener('error', onError);
+      engine.removeListener('process-died', onDied);
+    };
+
+    const onPartial = ({ text }: { text: string }): void => {
+      floatingWin?.webContents.send(IPC.PARTIAL_TRANSCRIPT, text);
+    };
+
+    const onFinal = async ({ text }: { text: string }): Promise<void> => {
+      cleanup();
+      try {
+        const finalText = await processWithLLM(text.trim(), settings.llm);
+        if (finalText.trim()) {
+          await injectText(finalText);
+          saveHistory({ text: finalText, appName });
+        }
+        floatingWin?.webContents.send(IPC.TRANSCRIPTION_RESULT, finalText, 0);
+        getSettingsWindow()?.webContents.send(IPC.TRANSCRIPTION_RESULT, finalText, 0);
+      } catch (err: any) {
+        floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, err?.message ?? 'Error');
+      }
+    };
+
+    const onError = ({ message }: { message: string }): void => {
+      cleanup();
+      floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, message);
+    };
+
+    const onDied = (): void => {
+      cleanup();
+      floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, 'Speech engine crashed');
+    };
+
+    engine.on('partial', onPartial);
+    engine.once('final', onFinal);
+    engine.once('error', onError);
+    engine.once('process-died', onDied);
 
     try {
-      console.log(`[IPC] AUDIO_DATA received, bytes=${arrayBuffer.byteLength}`);
-      const pcm = processPCMBuffer(arrayBuffer);
-      console.log(`[IPC] Duration=${pcm.durationMs}ms, samples=${pcm.samples.length}`);
-
-      // Guard 1: minimum duration < 0.8s → skip (prevents hallucinations on taps)
-      if (pcm.durationMs < 800) {
-        console.log(`[IPC] SKIP: too short (${pcm.durationMs}ms)`);
-        silentDismiss();
-        return;
-      }
-
-      // Guard 2: silence detection — RMS energy below threshold
-      const rms = Math.sqrt(
-        pcm.samples.reduce((sum, s) => sum + s * s, 0) / pcm.samples.length,
-      );
-      console.log(`[IPC] RMS=${rms.toFixed(5)}`);
-      if (rms < 0.005) {
-        console.log(`[IPC] SKIP: too quiet (RMS=${rms.toFixed(5)})`);
-        silentDismiss();
-        return;
-      }
-
-      const settings = getSettings();
-      const engine = WhisperEngine.getInstance();
-      console.log(`[IPC] Sending to Whisper lang=${settings.whisper.language}`);
-
-      const { text, durationMs } = await engine.transcribe(
-        pcm.samples,
-        settings.whisper.language,
-      );
-      console.log(`[IPC] Whisper result: "${text}" (took ${durationMs}ms)`);
-
-      // Guard 3: hallucination filter
-      if (isHallucination(text)) {
-        console.log(`[IPC] SKIP: hallucination filtered: "${text}"`);
-        silentDismiss();
-        return;
-      }
-
-      const finalText = await processWithLLM(text, settings.llm);
-      console.log(`[IPC] Injecting text: "${finalText}"`);
-
-      await injectText(finalText);
-
-      floatingWin?.webContents.send(IPC.TRANSCRIPTION_RESULT, finalText, durationMs);
-      settingsWin?.webContents.send(IPC.TRANSCRIPTION_RESULT, finalText, durationMs);
+      await engine.start(settings.speech.language);
     } catch (err: any) {
-      const msg = err?.message ?? 'Unknown error';
-      console.error('[IPC] Transcription error:', msg);
-      floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, msg);
-      settingsWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, msg);
+      cleanup();
+      floatingWin?.webContents.send(
+        IPC.TRANSCRIPTION_ERROR,
+        err?.message ?? 'Speech engine failed to start',
+      );
     }
   });
 
-  ipcMain.handle(IPC.CANCEL_TRANSCRIPTION, () => {
-    WhisperEngine.getInstance().cancel();
+  ipcMain.handle(IPC.STOP_RECORDING, () => {
+    // Fire-and-forget. onFinal listener from START_RECORDING handles the result.
+    SpeechEngine.getInstance().stop();
   });
 
-  // ─── Model management ─────────────────────────────────────────────────────
-  ipcMain.handle(IPC.GET_MODEL_STATUS, () => isModelDownloaded());
+  // ─── History & Snippets ───────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.DOWNLOAD_MODEL, async () => {
-    const win = getSettingsWindow() ?? getFloatingWindow();
-    await downloadModel(win);
-  });
-
-  ipcMain.handle(IPC.DELETE_MODEL, () => {
-    deleteModel();
+  ipcMain.handle(IPC.GET_HISTORY, () => getHistory());
+  ipcMain.handle(IPC.DELETE_HISTORY_ITEM, (_e, id: string) => deleteHistory(id));
+  ipcMain.handle(IPC.GET_SNIPPETS, () => getSnippets());
+  ipcMain.handle(IPC.ADD_SNIPPET, (_e, title: string, content: string) => addSnippet(title, content));
+  ipcMain.handle(IPC.DELETE_SNIPPET, (_e, id: string) => deleteSnippet(id));
+  ipcMain.handle(IPC.COPY_SNIPPET, (_e, content: string) => {
+    // Clipboard only — don't inject (Settings window has focus)
+    clipboard.writeText(content);
   });
 
   // ─── Permissions ──────────────────────────────────────────────────────────
@@ -121,24 +125,4 @@ export function registerIpcHandlers(): void {
       systemPreferences.isTrustedAccessibilityClient(true);
     }
   });
-}
-
-// ─── Hallucination filter ─────────────────────────────────────────────────────
-// Whisper hallucinates these phrases on silence or very short audio.
-const HALLUCINATION_PATTERNS = [
-  /^thank(s| you)( for watching| for listening)?[.!]?$/i,
-  /^(bye|goodbye|see you)[.!]?$/i,
-  /^(please )?(like|subscribe|share)/i,
-  /^\[.*\]$/,            // [BLANK_AUDIO], [silence], [Music], etc.
-  /^[\s.。…]+$/,         // only whitespace or dots
-  /^you\.?$/i,
-  /^(the )?end\.?$/i,
-  /^subtitles by/i,
-  /^(www\.|http)/i,
-];
-
-function isHallucination(text: string): boolean {
-  const t = text.trim();
-  if (!t) return true;
-  return HALLUCINATION_PATTERNS.some(re => re.test(t));
 }

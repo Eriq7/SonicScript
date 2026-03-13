@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { ModelManager } from './ModelManager';
+import React, { useState, useEffect, useRef } from 'react';
 import { HotkeyConfig } from './HotkeyConfig';
 import { LLMSettings } from './LLMSettings';
 import { SUPPORTED_LANGUAGES } from '../../shared/constants';
+import type { HistoryEntry, Snippet } from '../../shared/types';
 
-type Tab = 'general' | 'hotkey' | 'model' | 'llm' | 'about';
+type Tab = 'general' | 'hotkey' | 'history' | 'snippets' | 'llm' | 'about';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'general', label: 'General' },
   { id: 'hotkey', label: 'Hotkey' },
-  { id: 'model', label: 'Model' },
+  { id: 'history', label: 'History' },
+  { id: 'snippets', label: 'Snippets' },
   { id: 'llm', label: 'Smart Edit' },
   { id: 'about', label: 'About' },
 ];
@@ -78,7 +79,8 @@ export function SettingsWindow(): React.ReactElement {
 
         {activeTab === 'general' && <GeneralSettings />}
         {activeTab === 'hotkey' && <HotkeyConfig />}
-        {activeTab === 'model' && <ModelManager />}
+        {activeTab === 'history' && <HistoryTab />}
+        {activeTab === 'snippets' && <SnippetsTab />}
         {activeTab === 'llm' && <LLMSettings />}
         {activeTab === 'about' && <AboutTab />}
       </main>
@@ -136,7 +138,7 @@ function GeneralSettings(): React.ReactElement {
   React.useEffect(() => {
     window.electronAPI?.getSettings().then(s => {
       setLaunchAtStartup(s.general.launchAtStartup);
-      setLanguage(s.whisper.language);
+      setLanguage(s.speech.language);
     });
   }, []);
 
@@ -148,7 +150,7 @@ function GeneralSettings(): React.ReactElement {
 
   const handleLanguageChange = async (code: string) => {
     setLanguage(code);
-    await window.electronAPI?.setSettings({ whisper: { language: code } });
+    await window.electronAPI?.setSettings({ speech: { language: code } });
   };
 
   return (
@@ -223,6 +225,249 @@ function GeneralSettings(): React.ReactElement {
   );
 }
 
+function HistoryTab(): React.ReactElement {
+  const [items, setItems] = useState<HistoryEntry[]>([]);
+
+  useEffect(() => {
+    window.electronAPI?.getHistory().then(setItems);
+  }, []);
+
+  const handleCopy = async (text: string) => {
+    await window.electronAPI?.copySnippet(text);
+  };
+
+  const handleDelete = async (id: string) => {
+    await window.electronAPI?.deleteHistoryItem(id);
+    setItems(prev => prev.filter(h => h.id !== id));
+  };
+
+  const formatTime = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <p className="text-hw-muted text-sm font-mono">No transcriptions yet</p>
+        <p className="text-hw-dim text-xs font-mono mt-1">Double-tap Right Option to start recording</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {items.map(item => (
+        <div
+          key={item.id}
+          className="p-3 group"
+          style={{
+            background: '#2A3F3E',
+            border: '1px solid #344A49',
+            borderRadius: '4px',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+          }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p
+              className="text-sm font-mono text-hw-text flex-1 leading-relaxed cursor-pointer hover:text-accent transition-colors"
+              style={{
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+              } as React.CSSProperties}
+              onClick={() => handleCopy(item.text)}
+              title="Click to copy"
+            >
+              {item.text}
+            </p>
+            <button
+              onClick={() => handleDelete(item.id)}
+              className="text-hw-dim hover:text-danger transition-colors shrink-0 text-xs font-mono opacity-0 group-hover:opacity-100"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{ background: '#1E3130', color: '#7ECEB3', border: '1px solid #344A49' }}
+            >
+              {item.appName}
+            </span>
+            <span className="text-[10px] font-mono text-hw-dim">{formatTime(item.createdAt)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SnippetsTab(): React.ReactElement {
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [toast, setToast] = useState('');
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    window.electronAPI?.getSnippets().then(setSnippets);
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(''), 2500);
+  };
+
+  const handleSave = async () => {
+    const t = title.trim();
+    const c = content.trim();
+    if (!t || !c) return;
+    await window.electronAPI?.addSnippet(t, c);
+    const updated = await window.electronAPI?.getSnippets();
+    if (updated) setSnippets(updated);
+    setTitle('');
+    setContent('');
+  };
+
+  const handleCopy = async (c: string) => {
+    await window.electronAPI?.copySnippet(c);
+    showToast('已复制 — 切换到目标应用后按 Cmd+V');
+  };
+
+  const handleDelete = async (id: string) => {
+    await window.electronAPI?.deleteSnippet(id);
+    setSnippets(prev => prev.filter(s => s.id !== id));
+  };
+
+  const inputStyle: React.CSSProperties = {
+    background: '#1E3130',
+    border: '1px solid #344A49',
+    borderRadius: '4px',
+    color: '#E8E4D9',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    padding: '8px 10px',
+    width: '100%',
+    outline: 'none',
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Toast */}
+      {toast && (
+        <div
+          className="text-xs font-mono text-center py-2 px-3 rounded"
+          style={{ background: '#1E3130', border: '1px solid #7ECEB3', color: '#7ECEB3' }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {/* Add snippet form */}
+      <div
+        className="p-4 space-y-3"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
+        <SectionLabel>New Snippet</SectionLabel>
+        <input
+          type="text"
+          placeholder="Title"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          style={inputStyle}
+        />
+        <textarea
+          placeholder="Content"
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          rows={4}
+          style={{ ...inputStyle, resize: 'vertical' }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={!title.trim() || !content.trim()}
+          className="text-xs font-mono px-4 py-2 rounded transition-all duration-200"
+          style={{
+            background: title.trim() && content.trim() ? '#7ECEB3' : '#2A3F3E',
+            color: title.trim() && content.trim() ? '#1A2F2E' : '#5A6E67',
+            border: '1px solid #344A49',
+            cursor: title.trim() && content.trim() ? 'pointer' : 'not-allowed',
+          }}
+        >
+          Save Snippet
+        </button>
+      </div>
+
+      {/* Snippet list */}
+      {snippets.length === 0 ? (
+        <p className="text-hw-muted text-sm font-mono text-center py-4">No snippets yet</p>
+      ) : (
+        <div className="space-y-2">
+          {snippets.map(s => (
+            <div
+              key={s.id}
+              className="p-3 group"
+              style={{
+                background: '#2A3F3E',
+                border: '1px solid #344A49',
+                borderRadius: '4px',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-mono text-hw-text truncate">{s.title}</p>
+                  <p
+                    className="text-xs font-mono text-hw-muted mt-0.5"
+                    style={{
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                    } as React.CSSProperties}
+                  >
+                    {s.content}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleCopy(s.content)}
+                    className="text-[10px] font-mono px-2 py-1 rounded transition-all duration-200"
+                    style={{
+                      background: '#1E3130',
+                      border: '1px solid #344A49',
+                      color: '#7ECEB3',
+                    }}
+                  >
+                    复制
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s.id)}
+                    className="text-[10px] font-mono text-hw-dim hover:text-danger transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AboutTab(): React.ReactElement {
   return (
     <div className="space-y-5">
@@ -261,7 +506,7 @@ function AboutTab(): React.ReactElement {
           >
             SonicScript
           </h3>
-          <p className="text-hw-muted text-xs mt-0.5">Free, local, privacy-first speech-to-text</p>
+          <p className="text-hw-muted text-xs mt-0.5">Fast, privacy-first speech-to-text for macOS</p>
           <p className="text-hw-dim text-[10px] font-mono mt-1 tracking-widest uppercase">SN: 1.0.0</p>
         </div>
       </div>
@@ -279,9 +524,9 @@ function AboutTab(): React.ReactElement {
         <SectionLabel>Features</SectionLabel>
         <div className="space-y-3">
           {[
-            { label: '100% local', detail: 'No data leaves your device' },
+            { label: 'Real-time streaming', detail: 'Words appear as you speak' },
+            { label: 'On-device recognition', detail: 'Apple SFSpeechRecognizer, no data leaves device' },
             { label: 'No account', detail: 'No sign-up required' },
-            { label: 'Powered by Whisper', detail: "OpenAI's open-source ASR model" },
             { label: 'Free forever', detail: 'Open source' },
           ].map(item => (
             <div key={item.label} className="flex items-start gap-3">
@@ -313,8 +558,7 @@ function AboutTab(): React.ReactElement {
       >
         <SectionLabel>Usage</SectionLabel>
         <p className="text-xs font-mono text-hw-muted leading-relaxed">
-          Double-tap <span className="text-hw-text">Right Alt</span> (Windows) or{' '}
-          <span className="text-hw-text">Right Option</span> (macOS) to start recording.
+          Double-tap <span className="text-hw-text">Right Option</span> to start recording.
           Double-tap again to stop. Text will be pasted at your cursor.
         </p>
       </div>

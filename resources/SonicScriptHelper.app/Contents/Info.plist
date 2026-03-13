@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.sonicscript.helper</string>
+  <key>CFBundleName</key>
+  <string>SonicScriptHelper</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleExecutable</key>
+  <string>SonicScriptHelper</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>SonicScript needs microphone access to transcribe your speech.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>SonicScript uses speech recognition to convert your voice to text.</string>
+</dict>
+</plist>

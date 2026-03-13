@@ -1,27 +1,22 @@
 {
   "name": "sonic-script",
   "version": "1.0.0",
-  "description": "Free, local, cross-platform speech-to-text desktop tool",
+  "description": "Fast, privacy-first speech-to-text for macOS using Apple SFSpeechRecognizer",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build:swift": "bash scripts/build-swift.sh",
+    "dev": "bash scripts/build-swift.sh && electron-vite dev",
+    "build": "bash scripts/build-swift.sh && electron-vite build && electron-builder",
     "preview": "electron-vite preview",
-    "package": "npm run build && electron-builder",
+    "package": "npm run build",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron-toolkit/utils": "^4.0.0",
-    "@fugood/whisper.node": "^1.0.16",
     "electron-store": "^8.1.0",
     "node-global-key-listener": "^0.3.0",
     "openai": "^4.47.1"
-  },
-  "build": {
-    "asarUnpack": [
-      "**/*.node"
-    ]
   },
   "devDependencies": {
     "@types/node": "^20.14.8",

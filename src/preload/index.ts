@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/types';
-import type { AppSettings } from '../shared/types';
+import type { AppSettings, HistoryEntry, Snippet } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
@@ -11,14 +11,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeAllListeners(IPC.HOTKEY_DOUBLE_TAP);
   },
 
-  // ─── Audio (renderer → main) ───
-  sendAudioData: (pcmBuffer: ArrayBuffer): Promise<void> =>
-    ipcRenderer.invoke(IPC.AUDIO_DATA, pcmBuffer),
-
-  cancelTranscription: (): Promise<void> =>
-    ipcRenderer.invoke(IPC.CANCEL_TRANSCRIPTION),
+  // ─── Speech recording (renderer → main, invoke) ───
+  startRecording: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.START_RECORDING),
+  stopRecording: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.STOP_RECORDING),
 
   // ─── Transcription events (main → renderer, listen) ───
+  onPartialTranscript: (cb: (text: string) => void) => {
+    ipcRenderer.on(IPC.PARTIAL_TRANSCRIPT, (_e, text) => cb(text));
+    return () => ipcRenderer.removeAllListeners(IPC.PARTIAL_TRANSCRIPT);
+  },
   onTranscriptionResult: (cb: (text: string, durationMs: number) => void) => {
     ipcRenderer.on(IPC.TRANSCRIPTION_RESULT, (_e, text, durationMs) => cb(text, durationMs));
     return () => ipcRenderer.removeAllListeners(IPC.TRANSCRIPTION_RESULT);
@@ -42,25 +45,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   requestAccessibility: (): Promise<void> =>
     ipcRenderer.invoke(IPC.REQUEST_ACCESSIBILITY),
 
-  // ─── Model management (single model, no model parameter) ───
-  getModelStatus: (): Promise<boolean> =>
-    ipcRenderer.invoke(IPC.GET_MODEL_STATUS),
-  downloadModel: (): Promise<void> =>
-    ipcRenderer.invoke(IPC.DOWNLOAD_MODEL),
-  deleteModel: (): Promise<void> =>
-    ipcRenderer.invoke(IPC.DELETE_MODEL),
-  onModelProgress: (cb: (progress: number, status: string) => void) => {
-    ipcRenderer.on(IPC.MODEL_PROGRESS, (_e, progress, status) => cb(progress, status));
-    return () => ipcRenderer.removeAllListeners(IPC.MODEL_PROGRESS);
-  },
-  onModelReady: (cb: () => void) => {
-    ipcRenderer.on(IPC.MODEL_READY, () => cb());
-    return () => ipcRenderer.removeAllListeners(IPC.MODEL_READY);
-  },
-  onModelError: (cb: (error: string) => void) => {
-    ipcRenderer.on(IPC.MODEL_ERROR, (_e, error) => cb(error));
-    return () => ipcRenderer.removeAllListeners(IPC.MODEL_ERROR);
-  },
+  // ─── History ───
+  getHistory: (): Promise<HistoryEntry[]> =>
+    ipcRenderer.invoke(IPC.GET_HISTORY),
+  deleteHistoryItem: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DELETE_HISTORY_ITEM, id),
+
+  // ─── Snippets ───
+  getSnippets: (): Promise<Snippet[]> =>
+    ipcRenderer.invoke(IPC.GET_SNIPPETS),
+  addSnippet: (title: string, content: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.ADD_SNIPPET, title, content),
+  deleteSnippet: (id: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.DELETE_SNIPPET, id),
+  copySnippet: (content: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.COPY_SNIPPET, content),
 
   // ─── Window events ───
   onShowSettings: (cb: () => void) => {
@@ -79,8 +78,9 @@ declare global {
     electronAPI: {
       platform: NodeJS.Platform;
       onHotkeyDoubleTap: (cb: () => void) => () => void;
-      sendAudioData: (pcmBuffer: ArrayBuffer) => Promise<void>;
-      cancelTranscription: () => Promise<void>;
+      startRecording: () => Promise<void>;
+      stopRecording: () => Promise<void>;
+      onPartialTranscript: (cb: (text: string) => void) => () => void;
       onTranscriptionResult: (cb: (text: string, durationMs: number) => void) => () => void;
       onTranscriptionError: (cb: (error: string) => void) => () => void;
       getSettings: () => Promise<AppSettings>;
@@ -88,12 +88,12 @@ declare global {
       updateHotkey: (key: string) => Promise<void>;
       checkAccessibility: () => Promise<boolean>;
       requestAccessibility: () => Promise<void>;
-      getModelStatus: () => Promise<boolean>;
-      downloadModel: () => Promise<void>;
-      deleteModel: () => Promise<void>;
-      onModelProgress: (cb: (progress: number, status: string) => void) => () => void;
-      onModelReady: (cb: () => void) => () => void;
-      onModelError: (cb: (error: string) => void) => () => void;
+      getHistory: () => Promise<HistoryEntry[]>;
+      deleteHistoryItem: (id: string) => Promise<void>;
+      getSnippets: () => Promise<Snippet[]>;
+      addSnippet: (title: string, content: string) => Promise<void>;
+      deleteSnippet: (id: string) => Promise<void>;
+      copySnippet: (content: string) => Promise<void>;
       onShowSettings: (cb: () => void) => () => void;
       onHideFloating: (cb: () => void) => () => void;
     };

@@ -16,6 +16,9 @@ extraResources:
     to: resources/
     filter:
       - '**/*'
+      - '!SonicScriptHelper'
+  - from: "resources/SonicScriptHelper"
+    to: "SonicScriptHelper"
 
 mac:
   category: public.app-category.productivity
@@ -28,25 +31,10 @@ mac:
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
   hardenedRuntime: true
+  extendInfo:
+    NSMicrophoneUsageDescription: "SonicScript needs microphone access to transcribe your speech."
+    NSSpeechRecognitionUsageDescription: "SonicScript uses speech recognition to convert your voice to text."
 
 dmg:
   title: SonicScript ${version}
   sign: false
-
-win:
-  icon: resources/icon.ico
-  target:
-    - target: nsis
-      arch:
-        - x64
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-
-linux:
-  category: Utility
-  target:
-    - AppImage
-
-afterSign: scripts/notarize.js
