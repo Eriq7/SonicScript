@@ -7,6 +7,7 @@ export async function processWithLLM(
   rawText: string,
   settings: LLMSettings,
 ): Promise<string> {
+  if (!rawText.trim()) return rawText;
   if (!settings.enabled || !settings.apiKey || settings.mode === 'none') {
     return rawText;
   }

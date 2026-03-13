@@ -8,10 +8,14 @@ class SpeechHelper {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var isRecording = false
+    private var stoppingByRequest = false
+    private var accumulatedText = ""
 
     func start(languageCode: String) {
         // Clean up any lingering session
         if isRecording { stopInternal() }
+        accumulatedText = ""
+        stoppingByRequest = false
 
         let locale = Locale(identifier: languageCode)
         guard let rec = SFSpeechRecognizer(locale: locale), rec.isAvailable else {
@@ -55,10 +59,26 @@ class SpeechHelper {
             if let result = result {
                 let text = result.bestTranscription.formattedString
                 if result.isFinal {
-                    self.output(["type": "final", "text": text])
-                    self.cleanupTask()
+                    if self.stoppingByRequest {
+                        // User explicitly stopped — emit full accumulated text as final
+                        let fullText = (self.accumulatedText + text).trimmingCharacters(in: .whitespaces)
+                        self.output(["type": "final", "text": fullText])
+                        self.accumulatedText = ""
+                        self.stoppingByRequest = false
+                        self.cleanupTask()
+                    } else {
+                        // SFSpeechRecognizer internal segment boundary — accumulate and restart task
+                        self.accumulatedText += text + " "
+                        self.cleanupTask()  // nil out task+request, keep audioEngine running
+                        let newReq = SFSpeechAudioBufferRecognitionRequest()
+                        newReq.shouldReportPartialResults = true
+                        self.request = newReq  // tap closure appends to self.request, now points to new req
+                        if let rec = self.recognizer {
+                            self.startTask(recognizer: rec, request: newReq, onDeviceAttempt: true)
+                        }
+                    }
                 } else {
-                    self.output(["type": "partial", "text": text])
+                    self.output(["type": "partial", "text": self.accumulatedText + text])
                 }
             } else if let error = error {
                 let nsErr = error as NSError
@@ -84,7 +104,8 @@ class SpeechHelper {
 
     func stop() {
         guard isRecording else { return }
-        request?.endAudio()      // Signal end-of-audio → triggers isFinal=true
+        stoppingByRequest = true  // Distinguish user stop from internal segment boundary
+        request?.endAudio()       // Signal end-of-audio → triggers isFinal=true
         stopInternal()
     }
 

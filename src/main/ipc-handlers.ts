@@ -42,6 +42,9 @@ export function registerIpcHandlers(): void {
     // Capture app name NOW (before recording ends, to avoid focus shift)
     const appName = await getActiveAppName();
 
+    // Track last non-empty partial as fallback for empty final results
+    let lastPartialText = '';
+
     // Session-scoped event handlers — created fresh, cleaned up on every exit path
     const cleanup = (): void => {
       engine.removeListener('partial', onPartial);
@@ -51,13 +54,16 @@ export function registerIpcHandlers(): void {
     };
 
     const onPartial = ({ text }: { text: string }): void => {
+      if (text) lastPartialText = text;
       floatingWin?.webContents.send(IPC.PARTIAL_TRANSCRIPT, text);
     };
 
     const onFinal = async ({ text }: { text: string }): Promise<void> => {
       cleanup();
+      // Swift now accumulates across segments; fall back to lastPartialText if final is empty
+      const effectiveText = text.trim() || lastPartialText.trim();
       try {
-        const finalText = await processWithLLM(text.trim(), settings.llm);
+        const finalText = await processWithLLM(effectiveText, settings.llm);
         if (finalText.trim()) {
           await injectText(finalText);
           saveHistory({ text: finalText, appName });
