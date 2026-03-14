@@ -10,11 +10,17 @@ class SpeechHelper {
     private var isRecording = false
     private var stoppingByRequest = false
     private var accumulatedText = ""
+    private var lastRawPartial = ""
+    private var activeTaskGeneration = 0
 
     func start(languageCode: String) {
         // Clean up any lingering session
-        if isRecording { stopInternal() }
+        if isRecording {
+            stopInternal()
+            cleanupTask(cancel: true)
+        }
         accumulatedText = ""
+        lastRawPartial = ""
         stoppingByRequest = false
 
         let locale = Locale(identifier: languageCode)
@@ -54,31 +60,50 @@ class SpeechHelper {
             req.requiresOnDeviceRecognition = true
         }
 
+        activeTaskGeneration += 1
+        let generation = activeTaskGeneration
         task = rec.recognitionTask(with: req) { [weak self] result, error in
             guard let self = self else { return }
+            guard generation == self.activeTaskGeneration else { return }
             if let result = result {
                 let text = result.bestTranscription.formattedString
                 if result.isFinal {
                     if self.stoppingByRequest {
-                        // User explicitly stopped — emit full accumulated text as final
-                        let fullText = (self.accumulatedText + text).trimmingCharacters(in: .whitespaces)
+                        // User explicitly stopped — emit full accumulated text as final.
+                        let finalSegment = text.isEmpty ? self.lastRawPartial : text
+                        let fullText = self.mergeTranscript(base: self.accumulatedText, next: finalSegment)
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
                         self.output(["type": "final", "text": fullText])
+                        self.stopInternal()
                         self.accumulatedText = ""
+                        self.lastRawPartial = ""
                         self.stoppingByRequest = false
                         self.cleanupTask()
                     } else {
-                        // SFSpeechRecognizer internal segment boundary — accumulate and restart task
-                        self.accumulatedText += text + " "
-                        self.cleanupTask()  // nil out task+request, keep audioEngine running
+                        // Commit completed segment and restart recognition without stopping audio.
+                        let completedSegment = text.isEmpty ? self.lastRawPartial : text
+                        self.accumulatedText = self.mergeTranscript(base: self.accumulatedText, next: completedSegment)
+                        self.lastRawPartial = ""
+                        self.cleanupTask()
                         let newReq = SFSpeechAudioBufferRecognitionRequest()
                         newReq.shouldReportPartialResults = true
-                        self.request = newReq  // tap closure appends to self.request, now points to new req
+                        if #available(macOS 13, *), onDeviceAttempt {
+                            newReq.requiresOnDeviceRecognition = true
+                        }
+                        self.request = newReq
                         if let rec = self.recognizer {
                             self.startTask(recognizer: rec, request: newReq, onDeviceAttempt: true)
                         }
                     }
                 } else {
-                    self.output(["type": "partial", "text": self.accumulatedText + text])
+                    if self.isSegmentReset(previous: self.lastRawPartial, current: text) {
+                        self.accumulatedText = self.mergeTranscript(base: self.accumulatedText, next: self.lastRawPartial)
+                    }
+                    if !text.isEmpty {
+                        self.lastRawPartial = text
+                    }
+                    let displayText = self.mergeTranscript(base: self.accumulatedText, next: text)
+                    self.output(["type": "partial", "text": displayText])
                 }
             } else if let error = error {
                 let nsErr = error as NSError
@@ -96,6 +121,7 @@ class SpeechHelper {
                     self.startTask(recognizer: rec, request: req, onDeviceAttempt: false)
                 } else {
                     self.output(["type": "error", "message": error.localizedDescription])
+                    self.stopInternal()
                     self.cleanupTask()
                 }
             }
@@ -104,16 +130,18 @@ class SpeechHelper {
 
     func stop() {
         guard isRecording else { return }
-        stoppingByRequest = true  // Distinguish user stop from internal segment boundary
-        request?.endAudio()       // Signal end-of-audio → triggers isFinal=true
-        stopInternal()
+        stoppingByRequest = true
+        request?.endAudio()
     }
 
     /// Force-cancel without waiting for final result (used on timeout/error)
     func cancel() {
         task?.cancel()
         stopInternal()
-        cleanupTask()
+        cleanupTask(cancel: true)
+        accumulatedText = ""
+        lastRawPartial = ""
+        stoppingByRequest = false
     }
 
     private func stopInternal() {
@@ -132,9 +160,43 @@ class SpeechHelper {
         isRecording = false
     }
 
-    private func cleanupTask() {
+    private func cleanupTask(cancel: Bool = false) {
+        if cancel {
+            task?.cancel()
+        }
         task = nil
         request = nil
+    }
+
+    private func isSegmentReset(previous: String, current: String) -> Bool {
+        guard !previous.isEmpty, !current.isEmpty else { return false }
+        guard current.count < previous.count / 2 else { return false }
+        return !previous.hasPrefix(current)
+    }
+
+    private func mergeTranscript(base: String, next: String) -> String {
+        let left = base.trimmingCharacters(in: .whitespacesAndNewlines)
+        let right = next.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if left.isEmpty { return right }
+        if right.isEmpty { return left }
+        if left.hasSuffix(right) { return left }
+        if right.hasPrefix(left) { return right }
+
+        let leftChars = Array(left)
+        let rightChars = Array(right)
+        let maxOverlap = min(leftChars.count, rightChars.count)
+
+        if maxOverlap > 0 {
+            for size in stride(from: maxOverlap, through: 1, by: -1) {
+                if Array(leftChars.suffix(size)) == Array(rightChars.prefix(size)) {
+                    return left + String(rightChars.dropFirst(size))
+                }
+            }
+        }
+
+        let separator = left.last?.isWhitespace == true || right.first?.isWhitespace == true ? "" : " "
+        return left + separator + right
     }
 
     func output(_ dict: [String: String]) {
