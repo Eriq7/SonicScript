@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { HotkeyConfig } from './HotkeyConfig';
 import { LLMSettings } from './LLMSettings';
 import type { HistoryEntry, Snippet } from '../../shared/types';
+import logoImg from '../assets/logo.png';
 
 type Tab = 'general' | 'hotkey' | 'history' | 'snippets' | 'llm' | 'about';
 
@@ -130,22 +131,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PenroseLogo({ size = 48 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 80 70" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Left bar: BL→Top */}
-      <polygon points="8,64 40,6 52,14 24,64" fill="#7ECEB3" />
-      {/* Right bar: Top→BR */}
-      <polygon points="40,6 72,64 56,64 28,14" fill="#5CB893" />
-      {/* Bottom bar */}
-      <polygon points="24,64 56,64 56,76 24,76" fill="#2A7A5A" />
-      {/* Impossible corner — bottom-left: left bar over bottom bar */}
-      <polygon points="8,64 24,64 24,76 8,76" fill="#7ECEB3" />
-      {/* Impossible corner — top: right bar over left bar */}
-      <polygon points="40,6 52,14 40,30 28,14" fill="#5CB893" />
-    </svg>
-  );
-}
 
 function GeneralSettings(): React.ReactElement {
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
@@ -184,18 +169,11 @@ function GeneralSettings(): React.ReactElement {
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
         }}
       >
-        <div
-          className="shrink-0 flex items-center justify-center"
-          style={{
-            width: 56, height: 56,
-            background: '#1A2F2E',
-            border: '1px solid #344A49',
-            borderRadius: '6px',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
-          }}
-        >
-          <PenroseLogo size={38} />
-        </div>
+        <img
+          src={logoImg}
+          alt="SonicScript logo"
+          style={{ width: 64, height: 64, borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+        />
         <div>
           <h3
             className="text-base font-bold text-hw-text tracking-tight"
@@ -367,7 +345,7 @@ function HistoryTab(): React.ReactElement {
                 className="text-[10px] font-mono px-2 py-1 rounded transition-all duration-200"
                 style={{ background: '#1E3130', border: '1px solid #344A49', color: '#7ECEB3' }}
               >
-                Save
+                Save to Snippets
               </button>
               <button
                 onClick={() => handleDelete(item.id)}
