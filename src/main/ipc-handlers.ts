@@ -13,6 +13,15 @@ import {
   getSnippets, addSnippet, deleteSnippet,
 } from './store/data-store';
 
+// Timeouts
+const RECORDING_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — prevents infinite recording
+const POST_PROC_TIMEOUT_MS = 50_000;          // 50 seconds — covers final + LLM + inject window
+
+// Module-scoped session state (one recording at a time)
+let sessionActive = false;
+let postStopTimer: NodeJS.Timeout | null = null;
+let recTimeout: NodeJS.Timeout | null = null;
+
 let hotkeyManagerRef: HotkeyManager | null = null;
 
 export function setHotkeyManagerRef(hm: HotkeyManager): void {
@@ -45,12 +54,21 @@ export function registerIpcHandlers(): void {
     // Track last non-empty partial as fallback for empty final results
     let lastPartialText = '';
 
-    // Session-scoped event handlers — created fresh, cleaned up on every exit path
-    const cleanup = (): void => {
+    // removeListeners: removes event listeners + clears recording timeout
+    // Does NOT touch postStopTimer or sessionActive — safe to call from onFinal
+    const removeListeners = (): void => {
       engine.removeListener('partial', onPartial);
       engine.removeListener('final', onFinal);
       engine.removeListener('error', onError);
       engine.removeListener('process-died', onDied);
+      if (recTimeout) { clearTimeout(recTimeout); recTimeout = null; }
+    };
+
+    // endSession: full teardown — listeners + postStopTimer + sessionActive flag
+    const endSession = (): void => {
+      removeListeners();
+      if (postStopTimer) { clearTimeout(postStopTimer); postStopTimer = null; }
+      sessionActive = false;
     };
 
     const onPartial = ({ text }: { text: string }): void => {
@@ -59,11 +77,18 @@ export function registerIpcHandlers(): void {
     };
 
     const onFinal = async ({ text }: { text: string }): Promise<void> => {
-      cleanup();
-      // Swift now accumulates across segments; fall back to lastPartialText if final is empty
+      // Guard 1: watchdog may have already ended the session
+      if (!sessionActive) return;
+
+      removeListeners(); // clears listeners + recTimeout; postStopTimer still running
+
       const effectiveText = text.trim() || lastPartialText.trim();
       try {
         const finalText = await processWithLLM(effectiveText, settings.llm);
+
+        // Guard 2: watchdog may have fired while processWithLLM was awaited
+        if (!sessionActive) return;
+
         if (finalText.trim()) {
           await injectText(finalText);
           saveHistory({ text: finalText, appName });
@@ -71,17 +96,21 @@ export function registerIpcHandlers(): void {
         floatingWin?.webContents.send(IPC.TRANSCRIPTION_RESULT, finalText, 0);
         getSettingsWindow()?.webContents.send(IPC.TRANSCRIPTION_RESULT, finalText, 0);
       } catch (err: any) {
-        floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, err?.message ?? 'Error');
+        if (sessionActive) {
+          floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, err?.message ?? 'Error');
+        }
+      } finally {
+        endSession();
       }
     };
 
     const onError = ({ message }: { message: string }): void => {
-      cleanup();
+      endSession();
       floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, message);
     };
 
     const onDied = (): void => {
-      cleanup();
+      endSession();
       floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, 'Speech engine crashed');
     };
 
@@ -90,10 +119,17 @@ export function registerIpcHandlers(): void {
     engine.once('error', onError);
     engine.once('process-died', onDied);
 
+    sessionActive = true;
+
+    // Recording timeout: auto-stop after 10 minutes to prevent infinite recording
+    recTimeout = setTimeout(() => {
+      engine.stop(); // triggers the normal onFinal path
+    }, RECORDING_TIMEOUT_MS);
+
     try {
       await engine.start(settings.speech.language);
     } catch (err: any) {
-      cleanup();
+      endSession();
       floatingWin?.webContents.send(
         IPC.TRANSCRIPTION_ERROR,
         err?.message ?? 'Speech engine failed to start',
@@ -104,6 +140,27 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.STOP_RECORDING, () => {
     // Fire-and-forget. onFinal listener from START_RECORDING handles the result.
     SpeechEngine.getInstance().stop();
+
+    // Post-stop watchdog: if final never arrives within 50s, abort the session
+    if (sessionActive) {
+      if (postStopTimer) clearTimeout(postStopTimer);
+      postStopTimer = setTimeout(() => {
+        if (sessionActive) {
+          // endSession clears listeners and nulls all refs
+          const floatingWin = getFloatingWindow();
+          // Manually inline teardown to avoid circular ref issues
+          sessionActive = false;
+          postStopTimer = null;
+          if (recTimeout) { clearTimeout(recTimeout); recTimeout = null; }
+          const engine = SpeechEngine.getInstance();
+          engine.removeAllListeners('partial');
+          engine.removeAllListeners('final');
+          engine.removeAllListeners('error');
+          engine.removeAllListeners('process-died');
+          floatingWin?.webContents.send(IPC.TRANSCRIPTION_ERROR, 'Processing timed out');
+        }
+      }, POST_PROC_TIMEOUT_MS);
+    }
   });
 
   // ─── History & Snippets ───────────────────────────────────────────────────

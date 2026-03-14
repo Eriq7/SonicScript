@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HotkeyConfig } from './HotkeyConfig';
 import { LLMSettings } from './LLMSettings';
-import { SUPPORTED_LANGUAGES } from '../../shared/constants';
 import type { HistoryEntry, Snippet } from '../../shared/types';
 
 type Tab = 'general' | 'hotkey' | 'history' | 'snippets' | 'llm' | 'about';
@@ -131,14 +130,39 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function PenroseLogo({ size = 48 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 80 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Left bar: BL→Top */}
+      <polygon points="8,64 40,6 52,14 24,64" fill="#7ECEB3" />
+      {/* Right bar: Top→BR */}
+      <polygon points="40,6 72,64 56,64 28,14" fill="#5CB893" />
+      {/* Bottom bar */}
+      <polygon points="24,64 56,64 56,76 24,76" fill="#2A7A5A" />
+      {/* Impossible corner — bottom-left: left bar over bottom bar */}
+      <polygon points="8,64 24,64 24,76 8,76" fill="#7ECEB3" />
+      {/* Impossible corner — top: right bar over left bar */}
+      <polygon points="40,6 52,14 40,30 28,14" fill="#5CB893" />
+    </svg>
+  );
+}
+
 function GeneralSettings(): React.ReactElement {
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
-  const [language, setLanguage] = useState('zh');
+  const [stats, setStats] = useState({ count: 0, chars: 0, topApp: '—' });
 
   React.useEffect(() => {
     window.electronAPI?.getSettings().then(s => {
       setLaunchAtStartup(s.general.launchAtStartup);
-      setLanguage(s.speech.language);
+    });
+    window.electronAPI?.getHistory().then(history => {
+      if (!history || history.length === 0) return;
+      const count = history.length;
+      const chars = history.reduce((n, h) => n + h.text.length, 0);
+      const freq: Record<string, number> = {};
+      history.forEach(h => { freq[h.appName] = (freq[h.appName] ?? 0) + 1; });
+      const topApp = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+      setStats({ count, chars, topApp });
     });
   }, []);
 
@@ -148,13 +172,44 @@ function GeneralSettings(): React.ReactElement {
     await window.electronAPI?.setSettings({ general: { launchAtStartup: next, showNotifications: true } });
   };
 
-  const handleLanguageChange = async (code: string) => {
-    setLanguage(code);
-    await window.electronAPI?.setSettings({ speech: { language: code } });
-  };
-
   return (
     <div className="space-y-5">
+      {/* Branding card */}
+      <div
+        className="flex items-center gap-4 p-5"
+        style={{
+          background: '#2A3F3E',
+          border: '1px solid #344A49',
+          borderRadius: '4px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{
+            width: 56, height: 56,
+            background: '#1A2F2E',
+            border: '1px solid #344A49',
+            borderRadius: '6px',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+          }}
+        >
+          <PenroseLogo size={38} />
+        </div>
+        <div>
+          <h3
+            className="text-base font-bold text-hw-text tracking-tight"
+            style={{ fontFamily: 'Syne, system-ui, sans-serif' }}
+          >
+            SonicScript
+          </h3>
+          <p className="text-hw-muted text-xs mt-0.5">Voice to text, instantly.</p>
+          <p className="text-hw-dim text-[10px] font-mono mt-1 tracking-widest uppercase">
+            Apple SFSpeechRecognizer · On-device
+          </p>
+        </div>
+      </div>
+
       {/* Launch at startup */}
       <div
         className="flex items-center justify-between p-4"
@@ -172,7 +227,7 @@ function GeneralSettings(): React.ReactElement {
         <Toggle checked={launchAtStartup} onChange={toggleStartup} />
       </div>
 
-      {/* Language */}
+      {/* Usage stats */}
       <div
         className="p-4"
         style={{
@@ -182,44 +237,36 @@ function GeneralSettings(): React.ReactElement {
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
         }}
       >
-        <SectionLabel>Transcription Language</SectionLabel>
-        <div className="space-y-1">
-          {SUPPORTED_LANGUAGES.map(lang => (
-            <label
-              key={lang.code}
-              className="flex items-center gap-3 p-3 cursor-pointer transition-all duration-200"
-              style={{ borderRadius: '4px' }}
+        <SectionLabel>Usage Stats</SectionLabel>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { value: String(stats.count), label: 'Recent recordings' },
+            { value: String(stats.chars), label: 'Characters typed' },
+            { value: stats.topApp, label: 'Top app' },
+          ].map(stat => (
+            <div
+              key={stat.label}
+              className="flex flex-col items-center py-3 px-2"
+              style={{
+                background: '#1E3130',
+                border: '1px solid #344A49',
+                borderRadius: '4px',
+              }}
             >
-              {/* LED indicator */}
-              <div
-                className="w-3 h-3 rounded-full border shrink-0 flex items-center justify-center transition-all duration-200"
-                style={{
-                  borderColor: language === lang.code ? '#7ECEB3' : '#3F5857',
-                  boxShadow: language === lang.code ? '0 0 6px rgba(126,206,179,0.5), 0 0 2px rgba(126,206,179,0.8)' : 'none',
-                }}
+              <span
+                className="font-mono font-bold text-hw-text truncate max-w-full text-center"
+                style={{ fontSize: stat.value.length > 6 ? '10px' : '16px' }}
+                title={stat.value}
               >
-                {language === lang.code && (
-                  <div
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: '#7ECEB3' }}
-                  />
-                )}
-              </div>
-              <input
-                type="radio"
-                name="language"
-                value={lang.code}
-                checked={language === lang.code}
-                onChange={() => handleLanguageChange(lang.code)}
-                className="sr-only"
-              />
-              <div>
-                <p className="text-sm font-mono text-hw-text">{lang.label}</p>
-                <p className="text-xs text-hw-muted">{lang.hint}</p>
-              </div>
-            </label>
+                {stat.value}
+              </span>
+              <span className="text-[9px] font-mono text-hw-dim mt-1 text-center leading-tight">
+                {stat.label}
+              </span>
+            </div>
           ))}
         </div>
+        <p className="text-[9px] font-mono text-hw-dim mt-2 text-right">Based on recent 50 recordings</p>
       </div>
     </div>
   );
@@ -227,13 +274,28 @@ function GeneralSettings(): React.ReactElement {
 
 function HistoryTab(): React.ReactElement {
   const [items, setItems] = useState<HistoryEntry[]>([]);
+  const [toast, setToast] = useState('');
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     window.electronAPI?.getHistory().then(setItems);
   }, []);
 
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(''), 2000);
+  };
+
   const handleCopy = async (text: string) => {
     await window.electronAPI?.copySnippet(text);
+    showToast('Copied');
+  };
+
+  const handleSave = async (text: string) => {
+    const title = text.slice(0, 40).trim() + (text.length > 40 ? '…' : '');
+    await window.electronAPI?.addSnippet(title, text);
+    showToast('Saved to Snippets');
   };
 
   const handleDelete = async (id: string) => {
@@ -260,6 +322,15 @@ function HistoryTab(): React.ReactElement {
 
   return (
     <div className="space-y-2">
+      {/* Toast */}
+      {toast && (
+        <div
+          className="text-xs font-mono text-center py-2 px-3 rounded"
+          style={{ background: '#1E3130', border: '1px solid #7ECEB3', color: '#7ECEB3' }}
+        >
+          {toast}
+        </div>
+      )}
       {items.map(item => (
         <div
           key={item.id}
@@ -273,24 +344,38 @@ function HistoryTab(): React.ReactElement {
         >
           <div className="flex items-start justify-between gap-2">
             <p
-              className="text-sm font-mono text-hw-text flex-1 leading-relaxed cursor-pointer hover:text-accent transition-colors"
+              className="text-sm font-mono text-hw-text flex-1 leading-relaxed"
               style={{
                 overflow: 'hidden',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
               } as React.CSSProperties}
-              onClick={() => handleCopy(item.text)}
-              title="Click to copy"
             >
               {item.text}
             </p>
-            <button
-              onClick={() => handleDelete(item.id)}
-              className="text-hw-dim hover:text-danger transition-colors shrink-0 text-xs font-mono opacity-0 group-hover:opacity-100"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => handleCopy(item.text)}
+                className="text-[10px] font-mono px-2 py-1 rounded transition-all duration-200"
+                style={{ background: '#1E3130', border: '1px solid #344A49', color: '#7ECEB3' }}
+              >
+                Copy
+              </button>
+              <button
+                onClick={() => handleSave(item.text)}
+                className="text-[10px] font-mono px-2 py-1 rounded transition-all duration-200"
+                style={{ background: '#1E3130', border: '1px solid #344A49', color: '#7ECEB3' }}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="text-hw-dim hover:text-danger transition-colors text-xs font-mono opacity-0 group-hover:opacity-100 ml-0.5"
+              >
+                ✕
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 mt-1.5">
             <span

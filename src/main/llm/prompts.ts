@@ -12,6 +12,11 @@ Rules:
 - Preserve the speaker's intended meaning, tone, and all factual content
 - Do not add information that wasn't said or implied
 - Preserve technical terms, proper nouns, and specific numbers/data exactly
+- CRITICAL: Do NOT translate between Chinese and English under any circumstance.
+  Every word must stay in the language it was spoken. If the speaker said an
+  English word, it stays English. If the speaker said a Chinese word, it stays
+  Chinese. Example: "我觉得这个 API design 需要再改一下" must output with
+  "API" and "design" in English — never translate them to "接口" or "设计".
 - Return ONLY the processed text, no explanations or commentary
 
 App context: ${activeApp}
