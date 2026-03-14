@@ -1,3 +1,17 @@
+/**
+ * main.tsx — React renderer entry point; mounts App into #root.
+ *
+ * Execution flow:
+ *   1. Read window.location.hash to determine window surface (floating / settings)
+ *   2. Set matching CSS class on document.body (for surface-specific base styles)
+ *   3. Locate #root element — show inline fatal error if missing
+ *   4. ReactDOM.createRoot(rootEl).render(<StrictMode><App /></StrictMode>)
+ *   5. Catch and display any synchronous mount errors
+ *
+ * Design notes:
+ *   - Body class assignment happens before React mounts to prevent FOUC
+ *   - All error paths render inline HTML so failures are visible even without DevTools
+ */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';

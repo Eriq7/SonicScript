@@ -1,3 +1,22 @@
+/**
+ * SettingsWindow.tsx — 6-tab settings panel; root component for the settings window.
+ *
+ * Main exports:
+ *   - SettingsWindow(): React.ReactElement — tab shell with sidebar navigation
+ *   - Toggle({ checked, onChange }): React.ReactElement — reusable toggle switch
+ *
+ * Internal components (not exported):
+ *   - GeneralSettings — launch-at-startup toggle + 3-stat usage dashboard
+ *   - HistoryTab       — scrollable list of recent transcriptions with copy/save/delete
+ *   - SnippetsTab      — snippet CRUD (add form + list with copy/delete)
+ *   - AboutTab         — app identity, feature list, usage instructions
+ *
+ * Design notes:
+ *   - Tab routing is local state; no router library used
+ *   - Toggle is exported so LLMSettings.tsx can import it (avoids duplication)
+ *   - Toast notifications use a shared showToast pattern in History/Snippets tabs
+ *   - GeneralSettings derives usage stats (count, chars, topApp) from history on mount
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import { HotkeyConfig } from './HotkeyConfig';
 import { LLMSettings } from './LLMSettings';

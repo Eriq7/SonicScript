@@ -1,12 +1,23 @@
 /**
- * text-output.ts
- * Writes transcription text to clipboard and simulates Cmd+V / Ctrl+V
- * to paste it into whatever app the user was previously focused on.
+ * text-output.ts — Writes transcribed text to clipboard and simulates a paste keystroke.
  *
- * Strategy: clipboard write + simulated paste keystroke.
- * macOS: osascript
- * Windows: PowerShell SendKeys
- * Linux: xdotool
+ * Main exports:
+ *   - injectText(text): Promise<void> — clipboard write + 80ms delay + simulated Cmd+V
+ *
+ * Execution flow:
+ *   1. clipboard.writeText(text) — Electron native clipboard API
+ *   2. 80ms delay — ensures clipboard contents are flushed before the paste event
+ *   3. simulatePaste():
+ *        macOS:   osascript keystroke "v" using {command down}
+ *        Windows: PowerShell SendKeys ^v
+ *        Linux:   xdotool key ctrl+v (fallback: xclip + xdotool type)
+ *
+ * Design notes:
+ *   - Requires macOS Accessibility permission; paste failure is caught and logged —
+ *     text remains in clipboard so the user can paste manually with Cmd+V
+ *   - The 80ms delay is empirically tuned; shorter values cause intermittent failures
+ *     where the paste fires before the clipboard contents are ready
+ *   - Clipboard is NOT restored after injection
  */
 import { clipboard } from 'electron';
 import { exec } from 'child_process';

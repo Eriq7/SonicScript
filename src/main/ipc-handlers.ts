@@ -1,3 +1,31 @@
+/**
+ * ipc-handlers.ts — Central registration of all ipcMain.handle() routes.
+ *
+ * Main exports:
+ *   - registerIpcHandlers(): void    — registers all IPC handlers; called once at bootstrap
+ *   - setHotkeyManagerRef(hm): void  — injects HotkeyManager reference for UPDATE_HOTKEY
+ *
+ * I/O data types:
+ *   - AppSettings (partial)  → SET_SETTINGS handler input
+ *   - HistoryEntry[]         ← GET_HISTORY response
+ *   - Snippet[]              ← GET_SNIPPETS response
+ *
+ * Execution flow (recording session):
+ *   1. START_RECORDING: capture active app name, register session-scoped listeners
+ *      (partial/final/error/process-died), set sessionActive=true, start recording timeout
+ *   2. Swift streams partial results → forward to FloatingWidget via PARTIAL_TRANSCRIPT
+ *   3. STOP_RECORDING: fire-and-forget stop(); arm 50s post-stop watchdog timer
+ *   4. onFinal: remove listeners, run LLM post-processing, inject text, save history,
+ *      notify FloatingWidget and SettingsWindow, call endSession()
+ *   5. onError / onDied: endSession() + send TRANSCRIPTION_ERROR to FloatingWidget
+ *
+ * Design notes:
+ *   - Session state (sessionActive, postStopTimer, recTimeout) is module-scoped
+ *   - STOP_RECORDING is fire-and-forget; onFinal (registered during START) is the sole
+ *     consumer of the final transcript — no second once('final') is registered
+ *   - Recording timeout (10 min) auto-stops; post-stop watchdog (50s) aborts if
+ *     the final event never arrives (e.g. Swift crash mid-utterance)
+ */
 import { ipcMain, systemPreferences, clipboard } from 'electron';
 import { IPC } from '../shared/types';
 import type { AppSettings } from '../shared/types';

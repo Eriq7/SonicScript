@@ -1,3 +1,21 @@
+/**
+ * store.ts — App settings persistence via electron-store.
+ *
+ * Main exports:
+ *   - getSettings(): AppSettings     — reads settings with migration + validation applied
+ *   - setSettings(partial): void     — shallow-merges each section and persists
+ *
+ * I/O data types:
+ *   - AppSettings → { hotkey, speech, llm, general }
+ *
+ * Design notes:
+ *   - Stored in a file named "settings" (electron-store default path)
+ *   - Migration 1: old 'whisper.language' key → new 'speech.language'
+ *   - Migration 2: model 'gpt-4.1-mini' → 'gpt-4.1-nano'
+ *   - Language is validated and reset to 'zh' if it holds an unrecognised value
+ *   - setSettings() performs per-section shallow merge; passing { llm: { enabled: true } }
+ *     does NOT wipe other llm fields
+ */
 import Store from 'electron-store';
 import { DEFAULT_SETTINGS } from '../../shared/constants';
 import type { AppSettings } from '../../shared/types';

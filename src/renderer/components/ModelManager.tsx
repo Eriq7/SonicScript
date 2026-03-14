@@ -1,3 +1,19 @@
+/**
+ * ModelManager.tsx — LEGACY: Whisper model download UI (not currently used).
+ *
+ * NOTE: This component was part of the original Whisper-based architecture.
+ * It references electronAPI methods (getModelStatus, onModelProgress, onModelReady,
+ * onModelError, downloadModel, deleteModel) and constants (WHISPER_MODEL_DISPLAY_NAME,
+ * WHISPER_MODEL_SIZE_LABEL) that no longer exist after the switch to SFSpeechRecognizer.
+ * This file is retained for reference but is NOT imported or rendered anywhere.
+ *
+ * Main exports:
+ *   - ModelManager(): React.ReactElement — download/delete UI for a Whisper GGUF model
+ *
+ * Design notes:
+ *   - Do not delete until the Whisper → SF refactor is confirmed stable and the file
+ *     is no longer needed as a reference for the download flow
+ */
 import React, { useState, useEffect } from 'react';
 import { WHISPER_MODEL_DISPLAY_NAME, WHISPER_MODEL_SIZE_LABEL } from '../../shared/constants';
 

@@ -1,3 +1,22 @@
+/**
+ * windows.ts — BrowserWindow factory and accessor functions.
+ *
+ * Main exports:
+ *   - createFloatingWindow(): BrowserWindow  — frameless transparent always-on-top overlay
+ *   - createSettingsWindow(): BrowserWindow  — singleton settings panel (680×520)
+ *   - showFloatingWindow() / hideFloatingWindow() / getFloatingWindow()
+ *   - showSettingsWindow() / getSettingsWindow()
+ *   - getAllWindows(): BrowserWindow[]
+ *
+ * Design notes:
+ *   - FloatingWidget: frame=false, transparent, focusable=false, mouse events ignored;
+ *     on macOS set to 'screen-saver' level to appear above full-screen apps
+ *   - SettingsWindow: singleton — calling create() when it already exists just focuses it;
+ *     external links routed through shell.openExternal (not in-app navigation)
+ *   - Both windows load the same renderer HTML; hash fragment (#floating / #settings)
+ *     selects which React component to mount (handled in App.tsx)
+ *   - backgroundColor set on SettingsWindow to prevent white flash before React paints
+ */
 import { BrowserWindow, screen, app, shell } from 'electron';
 import * as path from 'path';
 import { is } from '@electron-toolkit/utils';

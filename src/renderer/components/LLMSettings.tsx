@@ -1,3 +1,22 @@
+/**
+ * LLMSettings.tsx — Smart Edit configuration: toggle, API key input, and save.
+ *
+ * Main exports:
+ *   - LLMSettings(): React.ReactElement
+ *
+ * Execution flow:
+ *   1. On mount: load LLM settings section from main process
+ *   2. Render Smart Edit toggle (enabled/disabled)
+ *   3. When enabled: show API key input (password field with show/hide toggle) and
+ *      cost-per-day hint; privacy notice explaining local-only key storage
+ *   4. Save button: setSettings({ llm: config }) → 2s "Saved" feedback state
+ *
+ * Design notes:
+ *   - Imports Toggle from SettingsWindow to avoid duplicating the toggle component
+ *   - API key is stored in plaintext in the electron-store settings file (local only)
+ *   - baseURL and model fields are not exposed in the UI; they default to OpenAI's
+ *     endpoint and gpt-4.1-nano; power users can edit via the settings JSON file directly
+ */
 import React, { useState, useEffect } from 'react';
 import type { LLMSettings as LLMConfig } from '../../shared/types';
 import { Toggle } from './SettingsWindow';

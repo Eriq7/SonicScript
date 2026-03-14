@@ -1,3 +1,38 @@
+/**
+ * SonicScriptHelper.swift — Swift CLI: microphone capture + streaming speech recognition.
+ *
+ * Main exports:
+ *   - SpeechHelper (class)
+ *       start(languageCode): starts AVAudioEngine + SFSpeechRecognizer session
+ *       stop(): signals endAudio(); waits for final recognition callback
+ *       cancel(): force-stops without emitting final result
+ *   - Main entry: outputs {"type":"ready"}, then processes stdin commands
+ *
+ * I/O data types (JSON lines on stdout):
+ *   - {"type":"ready"}                         — helper started
+ *   - {"type":"partial","text":"..."}          — live transcript update
+ *   - {"type":"final","text":"..."}            — session complete
+ *   - {"type":"error","message":"..."}         — recognition error
+ *   Commands received on stdin:
+ *   - {"action":"start","language":"zh-CN"}    — begin session
+ *   - {"action":"stop"}                        — graceful stop
+ *   - {"action":"cancel"}                      — force cancel
+ *
+ * Execution flow:
+ *   1. Install AVAudioEngine tap → feed buffers to SFSpeechAudioBufferRecognitionRequest
+ *   2. startTask(): try on-device recognition (macOS 13+); fall back to network on error
+ *   3. On non-final result: detect segment resets via isSegmentReset(); merge partials
+ *   4. On isFinal (natural timeout): commit segment, start new request (segment chaining)
+ *   5. On stop(): set stoppingByRequest=true → next isFinal emits full accumulated text
+ *
+ * Design notes:
+ *   - SFSpeechRecognizer.requestAuthorization() is NOT called — it crashes in ad-hoc
+ *     signed apps. Auth errors surface as error code 203 when the first task starts.
+ *   - Segment chaining (restart task on natural final) overcomes the ~60s recognition limit
+ *   - mergeTranscript() deduplicates overlapping text at segment boundaries
+ *   - Orphan guard: polls getppid() every 3s; exits if parent (Electron) dies
+ *   - RunLoop.main.run() is required to keep AVAudioEngine callbacks alive
+ */
 import Foundation
 import Speech
 import AVFoundation

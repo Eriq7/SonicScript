@@ -1,3 +1,17 @@
+/**
+ * types.ts — Shared TypeScript type definitions and IPC channel registry.
+ *
+ * Main exports:
+ *   - RecordingState: 'idle' | 'recording' | 'processing' | 'success' | 'error'
+ *   - AppSettings, HotkeySettings, LLMSettings, GeneralSettings
+ *   - TranscriptionResult, HistoryEntry, Snippet
+ *   - IPC (const object) — 15 channel name constants shared by main, preload, renderer
+ *
+ * Design notes:
+ *   - IPC is declared "as const" so values are narrowed to string literals, preventing
+ *     accidental use of raw string channel names anywhere else in the codebase
+ *   - All channel names live here to serve as the single source of truth for IPC routing
+ */
 export type RecordingState = 'idle' | 'recording' | 'processing' | 'success' | 'error';
 
 export type LLMMode = 'none' | 'smart-edit';

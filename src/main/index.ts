@@ -1,3 +1,26 @@
+/**
+ * index.ts — App entry point and bootstrap orchestrator.
+ *
+ * Main exports:
+ *   (none — side-effect module; all logic runs via app lifecycle hooks)
+ *
+ * Execution flow:
+ *   1. Acquire single-instance lock; quit if another instance is running
+ *   2. app.whenReady → bootstrap():
+ *      a. initDataStore()       — initialize history/snippets electron-store
+ *      b. registerIpcHandlers() — wire all ipcMain.handle() routes
+ *      c. createFloatingWindow() — always-on-top transparent overlay
+ *      d. createSettingsWindow() in dev mode only
+ *      e. createTray()          — system tray icon + menu
+ *      f. HotkeyManager.start() — begin listening for double-tap hotkey
+ *      g. SpeechEngine.spawn()  — start Swift helper subprocess in background
+ *   3. before-quit: stop hotkey listener, kill Swift subprocess
+ *   4. second-instance: show settings window instead of launching duplicate
+ *
+ * Design notes:
+ *   - App intentionally never quits on window-all-closed (runs as tray app)
+ *   - SpeechEngine spawn failure is non-fatal (logged as warning)
+ */
 import { app, BrowserWindow } from 'electron';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { createFloatingWindow, createSettingsWindow, getFloatingWindow } from './windows';

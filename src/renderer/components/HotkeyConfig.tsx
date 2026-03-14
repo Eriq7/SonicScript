@@ -1,3 +1,23 @@
+/**
+ * HotkeyConfig.tsx — Hotkey selection UI and Accessibility permission banner.
+ *
+ * Main exports:
+ *   - HotkeyConfig(): React.ReactElement
+ *
+ * Execution flow:
+ *   1. On mount: load current hotkey from settings + check Accessibility permission
+ *   2. Render permission banner if macOS and accessibility is not granted;
+ *      "Grant Access" button calls requestAccessibility() + re-checks after 1s delay
+ *   3. Render 4 preset hotkey options as a selection list;
+ *      selecting a preset calls updateHotkey() immediately (live update)
+ *
+ * Design notes:
+ *   - No custom key capture is implemented — only the 4 preset keys are supported
+ *   - Accessibility check uses isTrustedAccessibilityClient(false) (non-prompting);
+ *     requestAccessibility calls isTrustedAccessibilityClient(true) to open system dialog
+ *   - The 1s re-check delay after granting is intentional — macOS TCC takes a moment
+ *     to update the trust status after the user approves in System Settings
+ */
 import React, { useState, useEffect } from 'react';
 
 const PRESET_KEYS = [

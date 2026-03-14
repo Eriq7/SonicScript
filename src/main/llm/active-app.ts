@@ -1,7 +1,19 @@
 /**
- * active-app.ts
- * Detects the currently active (frontmost) application.
- * Uses platform-specific approaches.
+ * active-app.ts — Detects the frontmost application on the user's desktop.
+ *
+ * Main exports:
+ *   - getActiveAppName(): Promise<string> — returns app name, or "Unknown" on failure
+ *
+ * Execution flow:
+ *   - macOS:   osascript → System Events → name of frontmost process
+ *   - Windows: PowerShell Get-Process → first process with a non-empty window title
+ *   - Other:   returns "Unknown"
+ *
+ * Design notes:
+ *   - Called at START_RECORDING time (before audio ends) so the result reflects
+ *     where the user was typing, not the SonicScript window that gains focus after stop
+ *   - Any exec error returns "Unknown" — this is non-fatal; the app name is only
+ *     used for LLM prompt context and history labelling
  */
 import { exec } from 'child_process';
 import { promisify } from 'util';

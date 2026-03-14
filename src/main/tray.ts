@@ -1,3 +1,17 @@
+/**
+ * tray.ts — System tray icon, tooltip, and context menu.
+ *
+ * Main exports:
+ *   - createTray(): Tray   — creates and stores the tray instance
+ *   - destroyTray(): void  — destroys the tray icon (called on quit)
+ *
+ * Design notes:
+ *   - On macOS, icon is set as a template image so it auto-adapts to light/dark menu bar
+ *   - Falls back to an empty 1×1 nativeImage if icon-tray.png is missing
+ *   - Context menu: Settings (Cmd+, / Ctrl+,) and Quit (Cmd+Q / Alt+F4)
+ *   - macOS single-click opens context menu natively; other platforms use double-click
+ *     to open Settings (since right-click is needed for context menu on those platforms)
+ */
 import { Tray, Menu, app, nativeImage } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';

@@ -1,4 +1,24 @@
 #!/bin/bash
+#
+# build-swift.sh — Compiles SonicScriptHelper.swift into a signed .app bundle,
+#                  then patches Electron's Info.plist with privacy descriptions.
+#
+# Main steps:
+#   1. Resolve SDK path: prefer MacOSX15.5.sdk; fall back to xcrun default
+#      (SDK pin is required because Swift 6.1.x is incompatible with the
+#      macOS 26.x beta SDK that ships with Xcode 26 pre-release)
+#   2. Create .app bundle structure (Contents/MacOS/) and copy helper-info.plist
+#      as Contents/Info.plist — bundle format is required for macOS TCC recognition
+#   3. swiftc -O: compile with frameworks Foundation, Speech, AVFoundation
+#   4. codesign --force --deep --sign - with entitlements.helper.plist (ad-hoc)
+#   5. Patch Electron.app/Contents/Info.plist:
+#        NSMicrophoneUsageDescription
+#        NSSpeechRecognitionUsageDescription
+#      Re-sign Electron.app after patching (TCC reads the plist from the signed bundle)
+#
+# Usage:
+#   npm run build:swift   (invoked via package.json scripts)
+#
 set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"

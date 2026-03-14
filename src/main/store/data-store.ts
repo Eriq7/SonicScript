@@ -1,3 +1,26 @@
+/**
+ * data-store.ts — Persistence layer for transcription history and user snippets.
+ *
+ * Main exports:
+ *   - initDataStore(): void                  — seed auto-increment counters on startup
+ *   - saveHistory(entry): void               — prepend to history (cap 50, FIFO)
+ *   - getHistory(): HistoryEntry[]           — all history, newest first
+ *   - deleteHistory(id): void               — remove single entry by id
+ *   - getSnippets(): Snippet[]              — all snippets, newest first
+ *   - addSnippet(title, content): void      — prepend snippet (uncapped)
+ *   - deleteSnippet(id): void               — remove snippet by id
+ *
+ * I/O data types:
+ *   - HistoryEntry → { id, text, appName, createdAt }
+ *   - Snippet      → { id, title, content, createdAt }
+ *
+ * Design notes:
+ *   - Stored in a separate electron-store file named "sonicscript-data" (not "settings")
+ *     so history/snippets survive settings resets
+ *   - IDs are auto-incrementing strings; counters are seeded from existing data on
+ *     initDataStore() to avoid collisions across sessions
+ *   - History cap is 50 entries (FIFO — oldest dropped); snippets are uncapped
+ */
 import Store from 'electron-store';
 import type { HistoryEntry, Snippet } from '../../shared/types';
 

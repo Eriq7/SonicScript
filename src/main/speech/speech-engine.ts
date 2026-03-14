@@ -1,3 +1,34 @@
+/**
+ * speech-engine.ts — SpeechEngine singleton; manages the Swift helper subprocess.
+ *
+ * Main exports:
+ *   - SpeechEngine (class, EventEmitter singleton)
+ *       spawn(): Promise<void>    — start the Swift .app bundle; wait for 'ready'
+ *       start(language): Promise<void> — begin a recognition session
+ *       stop(): void             — fire-and-forget stop (final event follows asynchronously)
+ *       cancel(): void           — force-cancel without waiting for final
+ *       kill(): Promise<void>    — terminate process (called on app quit)
+ *
+ * I/O data types:
+ *   - Emits 'ready'        — helper started and authorised
+ *   - Emits 'partial'      — { text: string } live transcript update
+ *   - Emits 'final'        — { text: string } completed transcript
+ *   - Emits 'error'        — { message: string } recognition error
+ *   - Emits 'process-died' — helper crashed or exited unexpectedly
+ *
+ * Execution flow:
+ *   1. spawn(): fork SonicScriptHelper.app/Contents/MacOS/SonicScriptHelper
+ *   2. Buffer stdout line-by-line; parse JSON; emit msg.type with msg payload
+ *   3. Wait up to 5s for 'ready' event; reject with timeout error if not received
+ *   4. ensureAlive() auto-respawns before start() if the process died
+ *   5. sendCommand() writes JSON lines to stdin
+ *
+ * Design notes:
+ *   - Must be launched as a .app bundle (not a raw binary) for macOS TCC to recognise it
+ *   - In dev mode, binary path is inside resources/ relative to app root;
+ *     in production, binary is at root of process.resourcesPath
+ *   - stop() is explicitly fire-and-forget; ipc-handlers.ts owns the onFinal listener
+ */
 import { ChildProcess, spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import path from 'path';

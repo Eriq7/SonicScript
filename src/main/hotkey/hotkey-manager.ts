@@ -1,7 +1,22 @@
 /**
- * hotkey-manager.ts
- * Uses node-global-key-listener to detect global key press/release events.
- * Fires callbacks when the configured hotkey (default: Right Alt/Option) is held.
+ * hotkey-manager.ts — Global hotkey listener with double-tap detection.
+ *
+ * Main exports:
+ *   - HotkeyManager (class)
+ *       start(onDoubleTap): void  — begin listening; fires callback on double-tap
+ *       stop(): void              — kill the native listener
+ *       updateKey(key): void      — hot-swap the target key without restarting
+ *
+ * Execution flow:
+ *   1. Attach GlobalKeyboardListener (node-global-key-listener)
+ *   2. On KEY_DOWN: if not held, record timestamp; if within 350ms of last KEY_UP → fire
+ *      onDoubleTap callback; reset lastKeyUpTime to prevent triple-tap triggering twice
+ *   3. On KEY_UP: clear isHeld, record lastKeyUpTime
+ *
+ * Design notes:
+ *   - 350ms window is tuned for natural double-tap speed without false positives
+ *   - matchesKey() normalises aliases: RIGHT ALT matches ALTGR, RIGHT_OPTION, RALT, etc.
+ *   - updateKey() resets internal state so stale timestamps do not carry over
  */
 import { GlobalKeyboardListener } from 'node-global-key-listener';
 

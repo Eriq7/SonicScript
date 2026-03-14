@@ -1,3 +1,24 @@
+/**
+ * index.ts — Electron preload: exposes a secure contextBridge API to the renderer.
+ *
+ * Main exports:
+ *   - window.electronAPI (via contextBridge.exposeInMainWorld)
+ *       platform: NodeJS.Platform
+ *       onHotkeyDoubleTap, startRecording, stopRecording
+ *       onPartialTranscript, onTranscriptionResult, onTranscriptionError
+ *       getSettings, setSettings, updateHotkey
+ *       checkAccessibility, requestAccessibility
+ *       getHistory, deleteHistoryItem
+ *       getSnippets, addSnippet, deleteSnippet, copySnippet
+ *       onShowSettings, onHideFloating
+ *
+ * Design notes:
+ *   - contextIsolation=true: renderer cannot access Node.js or Electron internals directly
+ *   - All event listeners (on*) return a cleanup function () => removeAllListeners(channel)
+ *     so React effects can unsubscribe on component unmount
+ *   - The global Window interface declaration at the bottom provides TypeScript types
+ *     for window.electronAPI throughout the renderer codebase
+ */
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/types';
 import type { AppSettings, HistoryEntry, Snippet } from '../shared/types';

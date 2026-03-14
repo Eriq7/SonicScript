@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  helper-info.plist — Info.plist for the SonicScriptHelper.app bundle.
+
+  Copied to SonicScriptHelper.app/Contents/Info.plist by scripts/build-swift.sh.
+  Key fields:
+    CFBundleIdentifier:              com.sonicscript.helper
+    CFBundleExecutable:              SonicScriptHelper
+    LSUIElement:                     true  (no Dock icon; runs in background)
+    NSMicrophoneUsageDescription:    required for AVAudioEngine microphone access
+    NSSpeechRecognitionUsageDescription: required for SFSpeechRecognizer
+
+  Note: macOS TCC checks the responsible process (.app bundle) for these usage
+  description strings. Without them, permission prompts are silently denied on
+  macOS 14+.
+-->
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key>

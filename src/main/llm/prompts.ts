@@ -1,3 +1,19 @@
+/**
+ * prompts.ts — Prompt construction for the Smart Edit LLM post-processor.
+ *
+ * Main exports:
+ *   - buildSmartEditPrompt(rawText, activeApp): string — full user prompt string
+ *
+ * Design notes:
+ *   - getAppContext() maps app names to tone descriptions:
+ *       Slack/Discord/Teams → casual; Mail/Outlook/Gmail → professional;
+ *       VS Code/Xcode/Vim   → preserve technical terms; Notion/Bear → notes;
+ *       Word/Pages/Docs     → formal; default → general
+ *   - Critical rule: NEVER translate between Chinese and English — every word stays
+ *     in the language it was spoken (prevents zh↔en contamination by the LLM)
+ *   - Prompt instructs: resolve self-corrections, remove filler words, fix grammar,
+ *     preserve meaning and factual content, return processed text only
+ */
 export function buildSmartEditPrompt(rawText: string, activeApp: string): string {
   const appContext = getAppContext(activeApp);
 

@@ -1,3 +1,12 @@
+/**
+ * constants.ts — App-wide compile-time constants and default configuration.
+ *
+ * Main exports:
+ *   - SUPPORTED_LANGUAGES — array of { code, label, hint } for zh and en
+ *   - DEFAULT_HOTKEY      — 'RIGHT ALT'
+ *   - DEFAULT_SETTINGS    — full AppSettings object used as electron-store defaults
+ *   - FLOATING_WIDGET     — { width: 320, height: 140, bottomOffset: 80 } (pixels)
+ */
 import type { AppSettings } from './types';
 
 export const SUPPORTED_LANGUAGES = [

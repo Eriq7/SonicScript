@@ -1,10 +1,25 @@
 /**
- * FloatingWidget.tsx
- * Wispr-Flow-style floating indicator:
- *   recording  → animated waveform pill + live partial transcript
- *   processing → spinner + "Transcribing…"
- *   success    → LED dot + text preview (1s)
- *   error      → brief error message
+ * FloatingWidget.tsx — Always-on-top recording indicator overlay.
+ *
+ * Main exports:
+ *   - FloatingWidget(): React.ReactElement
+ *
+ * I/O data types:
+ *   - RecordingState: 'idle' | 'recording' | 'processing' | 'success' | 'error'
+ *
+ * Execution flow (state machine):
+ *   idle       → double-tap → startRecording() → recording
+ *   recording  → double-tap → stopRecording()  → processing
+ *   processing → onTranscriptionResult         → success (auto-hides after 1s → idle)
+ *   any state  → onTranscriptionError          → error   (auto-hides after 3s → idle)
+ *
+ * Design notes:
+ *   - Returns <></> in idle state; component stays mounted but invisible
+ *   - Waveform animation uses 5 bars with CSS keyframe barBounce (inline <style>)
+ *   - partialText is displayed during recording as a live 2-line preview
+ *   - recordingSecs counter provides a mm:ss elapsed timer while recording
+ *   - All IPC listeners are registered in separate useEffect hooks, each returning
+ *     their cleanup function — no shared cleanup ref needed
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { RecordingState } from '../../shared/types';
