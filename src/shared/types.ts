@@ -64,6 +64,7 @@ export interface Snippet {
 export const IPC = {
   // Hotkey events (main → renderer)
   HOTKEY_DOUBLE_TAP: 'hotkey-double-tap',
+  HOTKEY_LONG_PRESS: 'hotkey-long-press',
 
   // Speech recording (renderer → main, invoke)
   START_RECORDING: 'start-recording',

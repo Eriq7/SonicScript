@@ -71,7 +71,11 @@ export function registerIpcHandlers(): void {
 
   // ─── Speech recording ─────────────────────────────────────────────────────
 
-  ipcMain.handle(IPC.START_RECORDING, async () => {
+  ipcMain.handle(IPC.START_RECORDING, async (_e, translate: boolean = false) => {
+    if (sessionActive) {
+      console.warn('[IPC] START_RECORDING rejected: session already active');
+      return;
+    }
     const settings = getSettings();
     const engine = SpeechEngine.getInstance();
     const floatingWin = getFloatingWindow();
@@ -112,7 +116,7 @@ export function registerIpcHandlers(): void {
 
       const effectiveText = text.trim() || lastPartialText.trim();
       try {
-        const finalText = await processWithLLM(effectiveText, settings.llm);
+        const finalText = await processWithLLM(effectiveText, settings.llm, translate);
 
         // Guard 2: watchdog may have fired while processWithLLM was awaited
         if (!sessionActive) return;

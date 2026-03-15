@@ -117,7 +117,7 @@ export function HotkeyConfig(): React.ReactElement {
 
       {/* Current hotkey */}
       <div>
-        <SectionLabel>Hold to Record</SectionLabel>
+        <SectionLabel>Double-tap to Record</SectionLabel>
         <div className="flex items-center gap-3">
           {/* Dark 3D Keycap */}
           <kbd
@@ -133,7 +133,7 @@ export function HotkeyConfig(): React.ReactElement {
           >
             {currentKey}
           </kbd>
-          <span className="text-xs text-hw-dim font-mono">hold to record</span>
+          <span className="text-xs text-hw-dim font-mono">double-tap to record</span>
         </div>
       </div>
 
@@ -172,7 +172,7 @@ export function HotkeyConfig(): React.ReactElement {
       </div>
 
       <p className="text-[11px] text-hw-dim font-mono">
-        Hold key while speaking. Release to transcribe. Text appears at cursor.
+        Double-tap to start/stop recording. Long-press to translate to English.
       </p>
     </div>
   );

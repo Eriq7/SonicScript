@@ -63,11 +63,18 @@ async function bootstrap(): Promise<void> {
   hotkeyManager = new HotkeyManager(settings.hotkey.key);
   setHotkeyManagerRef(hotkeyManager);
 
-  hotkeyManager.start(() => {
-    const win = getFloatingWindow();
-    win?.showInactive();
-    win?.webContents.send(IPC.HOTKEY_DOUBLE_TAP);
-  });
+  hotkeyManager.start(
+    () => {
+      const win = getFloatingWindow();
+      win?.showInactive();
+      win?.webContents.send(IPC.HOTKEY_DOUBLE_TAP);
+    },
+    () => {
+      const win = getFloatingWindow();
+      win?.showInactive();
+      win?.webContents.send(IPC.HOTKEY_LONG_PRESS);
+    },
+  );
 
   // Spawn Swift speech helper in background
   SpeechEngine.getInstance()

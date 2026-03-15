@@ -43,7 +43,7 @@ ${rawText}
 Processed text:`;
 }
 
-function getAppContext(appName: string): string {
+export function getAppContext(appName: string): string {
   const lower = appName.toLowerCase();
 
   if (lower.includes('slack') || lower.includes('discord') || lower.includes('teams')) {

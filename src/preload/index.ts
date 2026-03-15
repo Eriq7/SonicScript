@@ -31,10 +31,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.HOTKEY_DOUBLE_TAP, () => cb());
     return () => ipcRenderer.removeAllListeners(IPC.HOTKEY_DOUBLE_TAP);
   },
+  onHotkeyLongPress: (cb: () => void) => {
+    ipcRenderer.on(IPC.HOTKEY_LONG_PRESS, () => cb());
+    return () => ipcRenderer.removeAllListeners(IPC.HOTKEY_LONG_PRESS);
+  },
 
   // ─── Speech recording (renderer → main, invoke) ───
-  startRecording: (): Promise<void> =>
-    ipcRenderer.invoke(IPC.START_RECORDING),
+  startRecording: (translate?: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC.START_RECORDING, translate ?? false),
   stopRecording: (): Promise<void> =>
     ipcRenderer.invoke(IPC.STOP_RECORDING),
 
@@ -99,7 +103,8 @@ declare global {
     electronAPI: {
       platform: NodeJS.Platform;
       onHotkeyDoubleTap: (cb: () => void) => () => void;
-      startRecording: () => Promise<void>;
+      onHotkeyLongPress: (cb: () => void) => () => void;
+      startRecording: (translate?: boolean) => Promise<void>;
       stopRecording: () => Promise<void>;
       onPartialTranscript: (cb: (text: string) => void) => () => void;
       onTranscriptionResult: (cb: (text: string, durationMs: number) => void) => () => void;

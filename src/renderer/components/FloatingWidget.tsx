@@ -8,16 +8,19 @@
  *   - RecordingState: 'idle' | 'recording' | 'processing' | 'success' | 'error'
  *
  * Execution flow (state machine):
- *   idle       → double-tap → startRecording() → recording
- *   recording  → double-tap → stopRecording()  → processing
- *   processing → onTranscriptionResult         → success (auto-hides after 1s → idle)
- *   any state  → onTranscriptionError          → error   (auto-hides after 3s → idle)
+ *   idle       → double-tap → startRecording(false) → recording (green)
+ *   idle       → long-press → startRecording(true)  → recording (yellow, translate mode)
+ *   recording  → double-tap → stopRecording()       → processing
+ *   processing → onTranscriptionResult              → success (auto-hides after 1s → idle)
+ *   any state  → onTranscriptionError               → error   (auto-hides after 3s → idle)
  *
  * Design notes:
  *   - Returns <></> in idle state; component stays mounted but invisible
  *   - Waveform animation uses 5 bars with CSS keyframe barBounce (inline <style>)
  *   - partialText is displayed during recording as a live 2-line preview
  *   - recordingSecs counter provides a mm:ss elapsed timer while recording
+ *   - translateMode turns the widget yellow to distinguish translation recordings
+ *   - beginRecording() is a shared helper that clears stale state before starting
  *   - All IPC listeners are registered in separate useEffect hooks, each returning
  *     their cleanup function — no shared cleanup ref needed
  */
@@ -29,6 +32,7 @@ export function FloatingWidget(): React.ReactElement {
   const [resultText, setResultText] = useState('');
   const [partialText, setPartialText] = useState('');
   const [recordingSecs, setRecordingSecs] = useState(0);
+  const [translateMode, setTranslateMode] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -43,35 +47,55 @@ export function FloatingWidget(): React.ReactElement {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [state]);
 
+  // Shared helper: clears stale state and starts a new recording session
+  const beginRecording = useCallback(async (translate: boolean) => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setResultText('');
+    setPartialText('');
+    setTranslateMode(translate);
+    setState('recording');
+    try {
+      await window.electronAPI?.startRecording(translate);
+    } catch {
+      setState('error');
+      setTranslateMode(false);
+      hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
+    }
+  }, []);
+
   const handleDoubleTap = useCallback(async () => {
     if (state === 'idle') {
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      setResultText('');
-      setPartialText('');
-      setState('recording');
-      try {
-        await window.electronAPI?.startRecording();
-      } catch {
-        setState('error');
-        hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
-      }
+      await beginRecording(false);
     } else if (state === 'recording') {
       setState('processing');
       try {
         await window.electronAPI?.stopRecording();
       } catch {
         setState('error');
+        setTranslateMode(false);
         hideTimerRef.current = setTimeout(() => setState('idle'), 2500);
       }
     }
     // processing / success / error: ignore double-tap
-  }, [state]);
+  }, [state, beginRecording]);
+
+  const handleLongPress = useCallback(async () => {
+    if (state === 'idle') {
+      await beginRecording(true);
+    }
+    // If already recording/processing/etc., ignore long-press
+  }, [state, beginRecording]);
 
   // Listen for hotkey events
   useEffect(() => {
     const off = window.electronAPI?.onHotkeyDoubleTap(handleDoubleTap);
     return () => off?.();
   }, [handleDoubleTap]);
+
+  useEffect(() => {
+    const off = window.electronAPI?.onHotkeyLongPress(handleLongPress);
+    return () => off?.();
+  }, [handleLongPress]);
 
   // Live partial transcript during recording
   useEffect(() => {
@@ -85,7 +109,10 @@ export function FloatingWidget(): React.ReactElement {
       setResultText(text);
       setPartialText('');
       setState('success');
-      hideTimerRef.current = setTimeout(() => setState('idle'), 1000);
+      hideTimerRef.current = setTimeout(() => {
+        setState('idle');
+        setTranslateMode(false);
+      }, 1000);
     });
     return () => off?.();
   }, []);
@@ -96,7 +123,10 @@ export function FloatingWidget(): React.ReactElement {
       setResultText(err ?? 'Transcription failed');
       setPartialText('');
       setState('error');
-      hideTimerRef.current = setTimeout(() => setState('idle'), 3000);
+      hideTimerRef.current = setTimeout(() => {
+        setState('idle');
+        setTranslateMode(false);
+      }, 3000);
     });
     return () => off?.();
   }, []);
@@ -106,19 +136,35 @@ export function FloatingWidget(): React.ReactElement {
     const off = window.electronAPI?.onHideFloating(() => {
       setPartialText('');
       setState('idle');
+      setTranslateMode(false);
     });
     return () => off?.();
   }, []);
 
   if (state === 'idle') return <></>;
 
+  // Color theme based on translate mode
+  const isTranslate = translateMode;
+  const bgColor = state === 'error'
+    ? 'rgba(40,20,20,0.96)'
+    : isTranslate
+      ? 'rgba(58,50,30,0.94)'
+      : 'rgba(28,43,42,0.94)';
+  const borderColor = state === 'error'
+    ? '#5A2222'
+    : isTranslate
+      ? '#5A4E2E'
+      : '#344A49';
+  const waveformColor = isTranslate ? '#E8C55A' : '#7ECEB3';
+  const spinnerColor = isTranslate ? '#E8C55A' : '#7ECEB3';
+
   return (
     <div className="flex items-end justify-center w-full h-full pb-2">
       <div
         className="relative max-w-[280px] w-full shadow-lg backdrop-blur-xl transition-all duration-300"
         style={{
-          background: state === 'error' ? 'rgba(40,20,20,0.96)' : 'rgba(28,43,42,0.94)',
-          border: `1px solid ${state === 'error' ? '#5A2222' : '#344A49'}`,
+          background: bgColor,
+          border: `1px solid ${borderColor}`,
           borderRadius: '6px',
         }}
       >
@@ -132,7 +178,7 @@ export function FloatingWidget(): React.ReactElement {
                     key={i}
                     style={{
                       width: '3px',
-                      background: '#7ECEB3',
+                      background: waveformColor,
                       borderRadius: '2px',
                       height: `${[60, 90, 75, 100, 65][i]}%`,
                       animation: `barBounce 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
@@ -140,7 +186,9 @@ export function FloatingWidget(): React.ReactElement {
                   />
                 ))}
               </div>
-              <span className="text-hw-text text-sm font-mono">Recording</span>
+              <span className="text-hw-text text-sm font-mono">
+                {isTranslate ? 'Recording · Translating' : 'Recording'}
+              </span>
               <span
                 className="text-xs ml-auto font-mono tabular-nums"
                 style={{ color: '#5A6E67' }}
@@ -172,12 +220,14 @@ export function FloatingWidget(): React.ReactElement {
               className="animate-spin h-4 w-4 shrink-0"
               viewBox="0 0 24 24"
               fill="none"
-              style={{ color: '#7ECEB3' }}
+              style={{ color: spinnerColor }}
             >
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <span className="text-hw-muted text-sm font-mono">Transcribing…</span>
+            <span className="text-hw-muted text-sm font-mono">
+              {isTranslate ? 'Translating…' : 'Transcribing…'}
+            </span>
           </div>
         )}
 

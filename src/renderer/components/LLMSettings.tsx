@@ -1,21 +1,19 @@
 /**
- * LLMSettings.tsx — Smart Edit configuration: toggle, API key input, and save.
+ * LLMSettings.tsx — AI Features configuration: Smart Edit.
  *
  * Main exports:
  *   - LLMSettings(): React.ReactElement
  *
  * Execution flow:
  *   1. On mount: load LLM settings section from main process
- *   2. Render Smart Edit toggle (enabled/disabled)
- *   3. When enabled: show API key input (password field with show/hide toggle) and
- *      cost-per-day hint; privacy notice explaining local-only key storage
+ *   2. Render "AI Features" top toggle (controls config.enabled)
+ *   3. When enabled: show API key input, then Smart Edit sub-toggle
  *   4. Save button: setSettings({ llm: config }) → 2s "Saved" feedback state
  *
  * Design notes:
- *   - Imports Toggle from SettingsWindow to avoid duplicating the toggle component
+ *   - Translation is triggered by long-pressing the hotkey — no UI config needed
  *   - API key is stored in plaintext in the electron-store settings file (local only)
- *   - baseURL and model fields are not exposed in the UI; they default to OpenAI's
- *     endpoint and gpt-4.1-nano; power users can edit via the settings JSON file directly
+ *   - baseURL and model fields not exposed in UI; power users can edit via JSON directly
  */
 import React, { useState, useEffect } from 'react';
 import type { LLMSettings as LLMConfig } from '../../shared/types';
@@ -37,6 +35,13 @@ const insetInputClass = `
   bg-surface border border-groove rounded-hw px-3 py-2
   focus:outline-none transition-all duration-200
 `;
+
+const subPanelStyle = {
+  background: '#243836',
+  border: '1px solid #2E4543',
+  borderRadius: '4px',
+  boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.15)',
+};
 
 export function LLMSettings(): React.ReactElement {
   const [config, setConfig] = useState<LLMConfig>({
@@ -61,7 +66,7 @@ export function LLMSettings(): React.ReactElement {
 
   return (
     <div className="space-y-5">
-      {/* Enable toggle */}
+      {/* Top toggle: AI Features */}
       <div
         className="flex items-center justify-between p-4"
         style={{
@@ -72,9 +77,9 @@ export function LLMSettings(): React.ReactElement {
         }}
       >
         <div>
-          <p className="font-mono text-sm text-hw-text">Smart Edit</p>
+          <p className="font-mono text-sm text-hw-text">AI Features</p>
           <p className="text-xs text-hw-muted mt-0.5">
-            Use an LLM to clean up transcriptions before inserting
+            Power up your voice with AI processing. Requires an OpenAI API key.
           </p>
         </div>
         <Toggle
@@ -82,11 +87,6 @@ export function LLMSettings(): React.ReactElement {
           onChange={() => setConfig(c => ({ ...c, enabled: !c.enabled }))}
         />
       </div>
-
-      {/* Description */}
-      <p className="text-xs text-hw-muted leading-relaxed px-1">
-        Smart Edit uses GPT-4.1 Nano to automatically clean up grammar, remove filler words, and adjust tone based on the app you're typing in. If you speak 60 minutes a day, it costs about $0.01/day.
-      </p>
 
       {config.enabled && (
         <div
@@ -158,6 +158,28 @@ export function LLMSettings(): React.ReactElement {
             </svg>
             <p className="text-[11px] text-hw-dim leading-relaxed">
               Your API key is stored locally on your device only. SonicScript has no servers, no database, and no way to access your key.
+            </p>
+          </div>
+
+          {/* Smart Edit sub-toggle */}
+          <div>
+            <SectionLabel>Smart Edit</SectionLabel>
+            <div className="flex items-center justify-between p-3" style={subPanelStyle}>
+              <div>
+                <p className="font-mono text-sm text-hw-text">Clean up grammar and tone</p>
+                <p className="text-xs text-hw-muted mt-0.5">
+                  Remove filler words, fix grammar, adjust tone for the active app
+                </p>
+              </div>
+              <Toggle
+                checked={config.mode === 'smart-edit'}
+                onChange={() =>
+                  setConfig(c => ({ ...c, mode: c.mode === 'smart-edit' ? 'none' : 'smart-edit' }))
+                }
+              />
+            </div>
+            <p className="text-[11px] text-hw-dim mt-2">
+              Long-press your hotkey to translate speech to English.
             </p>
           </div>
         </div>
