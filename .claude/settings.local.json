@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(git status:*)",
+      "Bash(curl:*)",
+      "Bash(git init:*)",
+      "WebFetch(domain:blog.kulman.sk)",
+      "Bash(tail:*)",
+      "Bash(timeout 15 npm run:*)",
+      "Bash(true:*)",
+      "Bash(pkill:*)",
+      "Bash(chmod +x:*)",
+      "Bash(git add .gitignore electron-builder.yml electron.vite.config.ts package.json package-lock.json postcss.config.js tailwind.config.js tsconfig.json tsconfig.node.json tsconfig.web.json src/ resources/ .github/ .claude/PLAN.md && git status 2>&1)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo:*)",
+      "Bash(echo:*)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(sips:*)",
+      "Bash(bash:*)",
+      "Bash(xcrun:*)",
+      "Bash(xcode-select -p)",
+      "Bash(codesign:*)",
+      "Bash(xattr:*)",
+      "Bash(ls:*)",
+      "Bash(open:*)",
+      "Bash(npm run:*)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:blog.einverne.info)",
+      "WebFetch(domain:zhuanlan.zhihu.com)",
+      "WebFetch(domain:shandianshuo.cn)",
+      "WebFetch(domain:k2-fsa.github.io)",
+      "WebFetch(domain:blog.csdn.net)"
+    ]
+  }
+}
