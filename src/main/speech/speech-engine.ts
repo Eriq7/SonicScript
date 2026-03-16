@@ -51,8 +51,8 @@ export class SpeechEngine extends EventEmitter {
       // In dev mode: run the binary inside the .app bundle (needed for TCC recognition)
       return path.join(app.getAppPath(), 'resources/SonicScriptHelper.app/Contents/MacOS/SonicScriptHelper');
     }
-    // In production: binary is at the root of resources/
-    return path.join(process.resourcesPath, 'SonicScriptHelper');
+    // In production: binary is inside the .app bundle at the root of resources/
+    return path.join(process.resourcesPath, 'SonicScriptHelper.app/Contents/MacOS/SonicScriptHelper');
   }
 
   /** Spawn the Swift helper process. Called once at app startup. */

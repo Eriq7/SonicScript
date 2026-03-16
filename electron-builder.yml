@@ -16,9 +16,10 @@ extraResources:
     to: resources/
     filter:
       - '**/*'
-      - '!SonicScriptHelper'
-  - from: "resources/SonicScriptHelper"
-    to: "SonicScriptHelper"
+      - '!SonicScriptHelper.app'
+      - '!SonicScriptHelper.app/**'
+  - from: "resources/SonicScriptHelper.app"
+    to: "SonicScriptHelper.app"
 
 mac:
   category: public.app-category.productivity

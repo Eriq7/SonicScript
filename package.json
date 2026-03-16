@@ -6,7 +6,7 @@
   "scripts": {
     "build:swift": "bash scripts/build-swift.sh",
     "dev": "bash scripts/build-swift.sh && electron-vite dev",
-    "build": "bash scripts/build-swift.sh && electron-vite build && electron-builder",
+    "build": "bash scripts/build-swift.sh && electron-vite build",
     "preview": "electron-vite preview",
     "package": "npm run build",
     "postinstall": "electron-builder install-app-deps"

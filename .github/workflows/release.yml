@@ -8,16 +8,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            platform: mac
-          - os: windows-latest
-            platform: win
-
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -32,29 +23,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build (Swift + electron-vite)
         run: npm run build
 
-      - name: Package (macOS)
-        if: matrix.platform == 'mac'
+      - name: Package (electron-builder)
         run: npx electron-builder --mac --publish=never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Package (Windows)
-        if: matrix.platform == 'win'
-        run: npx electron-builder --win --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.platform }}
-          path: |
-            dist/*.dmg
-            dist/*.exe
-            dist/*.AppImage
+          name: dist-mac
+          path: dist/*.dmg
           if-no-files-found: warn
 
   release:
